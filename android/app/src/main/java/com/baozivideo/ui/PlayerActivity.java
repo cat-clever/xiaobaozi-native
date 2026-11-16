@@ -198,6 +198,17 @@ public class PlayerActivity extends AppCompatActivity {
             try {
                 Models.VodDetail d = Aggregator.detail(item.sourceId, vodId);
                 detail = d;
+                if (selectedQuality == null && !d.qualities.isEmpty()) {
+                    for (Models.QualityOption q : d.qualities) {
+                        if ((q.label != null && q.label.toLowerCase().contains("720")) || q.value == 2) {
+                            selectedQuality = q.value;
+                            break;
+                        }
+                    }
+                    if (selectedQuality == null) {
+                        selectedQuality = d.qualities.get(0).value;
+                    }
+                }
                 int target = Math.min(epIdx, Math.max(0, d.episodes.size() - 1));
                 runOnUiThread(() -> {
                     renderDetailUi();

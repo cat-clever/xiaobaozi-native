@@ -41,10 +41,10 @@ public final class StreamResolver {
             else if (l.kind == Models.LineKind.official && official == null) official = l;
             else if (l.kind == Models.LineKind.signed && signed == null) signed = l;
         }
+        if (signed != null) return signed;
         if (mirror != null) return mirror;
         if (m3u8 != null) return m3u8;
-        if (official != null) return official;
-        return signed;
+        return official;
     }
 
     private static Models.ResolvedMediaStream openLocal(String target, Map<String, String> headers, MediaServer.SignRule sign, boolean inheritQuery, String format, String lineName) {

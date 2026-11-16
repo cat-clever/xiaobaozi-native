@@ -30,10 +30,10 @@ enum StreamResolver {
 
   static func pickPlayableLine(_ lines: [PlayLine]) -> PlayLine? {
     let usable = lines.filter { $0.playable && $0.note.isEmpty }
-    return usable.first { $0.kind == .mirror }
+    return usable.first { $0.kind == .signed }
+      ?? usable.first { $0.kind == .mirror }
       ?? usable.first { $0.kind == .m3u8 }
       ?? usable.first { $0.kind == .official }
-      ?? usable.first { $0.kind == .signed }
   }
 
   private static func openLocalStream(

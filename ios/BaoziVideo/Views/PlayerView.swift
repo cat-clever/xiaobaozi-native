@@ -318,6 +318,13 @@ struct PlayerView: View {
       let d = try await Aggregator.shared.detail(sourceId: item.sourceId, id: vodId)
       detail = d
       qualities = d.qualities
+      if selectedQuality == nil, !d.qualities.isEmpty {
+        if let q720 = d.qualities.first(where: { $0.label.lowercased().contains("720") || $0.value == 2 }) {
+          selectedQuality = q720.value
+        } else {
+          selectedQuality = d.qualities.first?.value
+        }
+      }
       let targetIdx = min(epIdx, max(0, d.episodes.count - 1))
       if let ep = d.episodes[safe: targetIdx] {
         await playEpisode(ep, quality: selectedQuality)

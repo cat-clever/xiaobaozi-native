@@ -31,9 +31,6 @@ struct SettingsView: View {
               }
             }
           }
-
-          Toggle("液态玻璃效果", isOn: $theme.glassEnabled)
-            .tint(AppColors.accent)
         }
 
         Section("版本与更新") {

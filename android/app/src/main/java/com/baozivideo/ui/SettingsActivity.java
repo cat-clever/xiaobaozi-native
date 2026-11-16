@@ -79,14 +79,6 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
         themeCard.addView(rg);
-
-        Switch glassSwitch = new Switch(this);
-        glassSwitch.setText("液态玻璃效果");
-        glassSwitch.setTextColor(UiTheme.text(this));
-        glassSwitch.setPadding(0, (int) (8 * dp), 0, (int) (4 * dp));
-        glassSwitch.setChecked(StorageManager.getInstance().getGlassEnabled());
-        glassSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> StorageManager.getInstance().saveGlassEnabled(isChecked));
-        themeCard.addView(glassSwitch);
         root.addView(themeCard);
 
         TextView secUpdate = new TextView(this);

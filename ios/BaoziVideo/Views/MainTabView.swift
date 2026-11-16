@@ -31,9 +31,6 @@ struct MainTabView: View {
           .tag(2)
       }
       .tint(AppColors.accent)
-      .onChange(of: theme.glassEnabled) { _ in
-        theme.applyBarAppearance()
-      }
     }
     .fullScreenCover(item: $activePlayerItem) { item in
       PlayerView(item: item, initialEpisodeIndex: 0) {

@@ -110,6 +110,7 @@ public class MediaCardAdapter extends RecyclerView.Adapter<MediaCardAdapter.VH> 
 
         TextView title = new TextView(ctx);
         title.setTextSize(13);
+        title.setTextColor(UiTheme.text(ctx));
         title.setMaxLines(1);
         title.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);

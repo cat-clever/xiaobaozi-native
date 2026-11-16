@@ -1,8 +1,8 @@
 package com.baozivideo.ui;
 
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.view.Menu;
-import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -22,12 +22,23 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(UiTheme.bg(this));
 
         FrameLayout container = new FrameLayout(this);
         container.setId(ID_CONTAINER);
+        UiTheme.applySystemBarInsets(container, false);
         root.addView(container, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         BottomNavigationView nav = new BottomNavigationView(this);
+        nav.setBackgroundColor(UiTheme.barBg(this));
+        ColorStateList navColors = new ColorStateList(
+            new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}},
+            new int[]{UiTheme.accent(this), UiTheme.textDim(this)}
+        );
+        nav.setItemIconTintList(navColors);
+        nav.setItemTextColor(navColors);
+        nav.setElevation(0f);
+
         Menu menu = nav.getMenu();
         menu.add(Menu.NONE, ID_TAB_HOME, 0, "首页").setIcon(android.R.drawable.ic_menu_compass);
         menu.add(Menu.NONE, ID_TAB_CATEGORY, 1, "分类").setIcon(android.R.drawable.ic_menu_sort_by_size);

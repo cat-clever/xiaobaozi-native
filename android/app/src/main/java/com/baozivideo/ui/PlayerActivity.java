@@ -84,6 +84,8 @@ public class PlayerActivity extends AppCompatActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(UiTheme.bg(this));
+        UiTheme.applySystemBarInsets(root, true);
 
         videoBox = new FrameLayout(this);
         videoBox.setBackgroundColor(Color.BLACK);
@@ -107,18 +109,24 @@ public class PlayerActivity extends AppCompatActivity {
 
         topBtns = new LinearLayout(this);
         topBtns.setOrientation(LinearLayout.HORIZONTAL);
-        Button backBtn = new Button(this); backBtn.setText("‹");
-        backBtn.setOnClickListener(v -> finish());
-        Button castBtn = new Button(this); castBtn.setText("投屏");
+        topBtns.setPadding((int) (10 * dp), (int) (10 * dp), (int) (10 * dp), 0);
+        TextView backBtn = UiTheme.makeOverlayButton(this, "‹ 返回");
+        backBtn.setOnClickListener(v -> {
+            if (isFullscreen) toggleFullscreen(videoBox);
+            else finish();
+        });
+        TextView castBtn = UiTheme.makeOverlayButton(this, "投屏");
         castBtn.setOnClickListener(v -> showCastDialog());
-        Button pipBtn = new Button(this); pipBtn.setText("画中画");
+        TextView pipBtn = UiTheme.makeOverlayButton(this, "画中画");
         pipBtn.setOnClickListener(v -> enterPip());
-        Button fsBtn = new Button(this); fsBtn.setText("全屏");
+        TextView fsBtn = UiTheme.makeOverlayButton(this, "全屏");
         fsBtn.setOnClickListener(v -> toggleFullscreen(videoBox));
 
-        topBtns.addView(backBtn);
-        topBtns.addView(castBtn);
-        topBtns.addView(pipBtn);
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnLp.rightMargin = (int) (8 * dp);
+        topBtns.addView(backBtn, btnLp);
+        topBtns.addView(castBtn, btnLp);
+        topBtns.addView(pipBtn, btnLp);
         topBtns.addView(fsBtn);
         videoBox.addView(topBtns);
 
@@ -329,6 +337,7 @@ public class PlayerActivity extends AppCompatActivity {
         TextView titleTv = new TextView(this);
         titleTv.setText((detail != null ? detail.name : item.title) + "  [" + item.sourceId.label + "]");
         titleTv.setTextSize(19);
+        titleTv.setTextColor(UiTheme.text(this));
         titleTv.setTypeface(null, Typeface.BOLD);
         infoContainer.addView(titleTv);
 
@@ -336,38 +345,44 @@ public class PlayerActivity extends AppCompatActivity {
             TextView lineTv = new TextView(this);
             lineTv.setText("当前线路：" + currentStream.lineName);
             lineTv.setTextSize(12);
+            lineTv.setTextColor(UiTheme.textDim(this));
+            lineTv.setPadding(0, (int) (4 * dp), 0, (int) (8 * dp));
             infoContainer.addView(lineTv);
         }
 
+        LinearLayout.LayoutParams pillLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        pillLp.rightMargin = (int) (8 * dp);
+
         // 倍速
         HorizontalScrollView speedScroll = new HorizontalScrollView(this);
+        speedScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout speedRow = new LinearLayout(this);
+        speedRow.setPadding(0, (int) (4 * dp), 0, (int) (8 * dp));
         for (float sp : SPEEDS) {
-            Button b = new Button(this);
-            b.setText(sp + "x");
-            if (Math.abs(playbackSpeed - sp) < 0.01f) b.setTextColor(0xFFFFB454);
+            boolean active = Math.abs(playbackSpeed - sp) < 0.01f;
+            TextView b = UiTheme.makePillButton(this, sp + "x", active);
             b.setOnClickListener(v -> {
                 playbackSpeed = sp;
                 player.setPlaybackParameters(new PlaybackParameters(sp));
                 renderDetailUi();
             });
-            speedRow.addView(b);
+            speedRow.addView(b, pillLp);
         }
         speedScroll.addView(speedRow);
         infoContainer.addView(speedScroll);
 
         // 分季
         if (detail != null && detail.seasons.size() > 1) {
-            TextView st = new TextView(this); st.setText("分季"); st.setTypeface(null, Typeface.BOLD);
+            TextView st = new TextView(this); st.setText("分季"); st.setTextColor(UiTheme.text(this)); st.setTypeface(null, Typeface.BOLD);
+            st.setPadding(0, (int) (8 * dp), 0, (int) (4 * dp));
             infoContainer.addView(st);
             HorizontalScrollView hsv = new HorizontalScrollView(this);
+            hsv.setHorizontalScrollBarEnabled(false);
             LinearLayout row = new LinearLayout(this);
             for (Models.SeasonOption s : detail.seasons) {
-                Button b = new Button(this);
-                b.setText(s.title);
-                if (s.sid.equals(currentVodId)) b.setTextColor(0xFFFFB454);
+                TextView b = UiTheme.makePillButton(this, s.title, s.sid.equals(currentVodId));
                 b.setOnClickListener(v -> loadDetailAndPlay(s.sid, 0));
-                row.addView(b);
+                row.addView(b, pillLp);
             }
             hsv.addView(row);
             infoContainer.addView(hsv);
@@ -375,17 +390,18 @@ public class PlayerActivity extends AppCompatActivity {
 
         // 源1线路
         if (!lines.isEmpty()) {
-            TextView lt = new TextView(this); lt.setText("线路"); lt.setTypeface(null, Typeface.BOLD);
+            TextView lt = new TextView(this); lt.setText("线路"); lt.setTextColor(UiTheme.text(this)); lt.setTypeface(null, Typeface.BOLD);
+            lt.setPadding(0, (int) (8 * dp), 0, (int) (4 * dp));
             infoContainer.addView(lt);
             HorizontalScrollView hsv = new HorizontalScrollView(this);
+            hsv.setHorizontalScrollBarEnabled(false);
             LinearLayout row = new LinearLayout(this);
             for (Models.PlayLine l : lines) {
-                Button b = new Button(this);
-                b.setText(l.name);
+                TextView b = UiTheme.makePillButton(this, l.name, selectedLine == l);
                 b.setEnabled(l.playable);
-                if (selectedLine == l) b.setTextColor(0xFFFFB454);
+                if (!l.playable) b.setAlpha(0.45f);
                 b.setOnClickListener(v -> switchS1Line(l));
-                row.addView(b);
+                row.addView(b, pillLp);
             }
             hsv.addView(row);
             infoContainer.addView(hsv);
@@ -393,19 +409,20 @@ public class PlayerActivity extends AppCompatActivity {
 
         // 源2清晰度
         if (detail != null && !detail.qualities.isEmpty()) {
-            TextView qt = new TextView(this); qt.setText("清晰度"); qt.setTypeface(null, Typeface.BOLD);
+            TextView qt = new TextView(this); qt.setText("清晰度"); qt.setTextColor(UiTheme.text(this)); qt.setTypeface(null, Typeface.BOLD);
+            qt.setPadding(0, (int) (8 * dp), 0, (int) (4 * dp));
             infoContainer.addView(qt);
             HorizontalScrollView hsv = new HorizontalScrollView(this);
+            hsv.setHorizontalScrollBarEnabled(false);
             LinearLayout row = new LinearLayout(this);
             for (Models.QualityOption q : detail.qualities) {
-                Button b = new Button(this);
-                b.setText(q.label);
-                if (selectedQuality != null && selectedQuality == q.value) b.setTextColor(0xFFFFB454);
+                boolean active = selectedQuality != null && selectedQuality == q.value;
+                TextView b = UiTheme.makePillButton(this, q.label, active);
                 b.setOnClickListener(v -> {
                     selectedQuality = q.value;
                     if (episodeIndex < detail.episodes.size()) playEpisode(detail.episodes.get(episodeIndex), q.value);
                 });
-                row.addView(b);
+                row.addView(b, pillLp);
             }
             hsv.addView(row);
             infoContainer.addView(hsv);
@@ -413,26 +430,17 @@ public class PlayerActivity extends AppCompatActivity {
 
         // 选集
         if (detail != null && !detail.episodes.isEmpty()) {
-            TextView et = new TextView(this); et.setText("选集（" + detail.episodes.size() + "）"); et.setTypeface(null, Typeface.BOLD);
+            TextView et = new TextView(this); et.setText("选集（" + detail.episodes.size() + "）"); et.setTextColor(UiTheme.text(this)); et.setTypeface(null, Typeface.BOLD);
             et.setPadding(0, (int) (10 * dp), 0, (int) (6 * dp));
             infoContainer.addView(et);
             HorizontalScrollView hsv = new HorizontalScrollView(this);
+            hsv.setHorizontalScrollBarEnabled(false);
             LinearLayout row = new LinearLayout(this);
             for (Models.Episode ep : detail.episodes) {
-                TextView btn = new TextView(this);
-                btn.setText(ep.title);
                 boolean active = ep.episodeIndex == episodeIndex;
-                GradientDrawable bg = new GradientDrawable();
-                bg.setCornerRadius(8 * dp);
-                bg.setColor(active ? 0xFFFFB454 : 0x22888888);
-                btn.setTextColor(active ? 0xFF241503 : 0xFF888888);
-                btn.setBackground(bg);
-                btn.setPadding((int) (14 * dp), (int) (8 * dp), (int) (14 * dp), (int) (8 * dp));
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                lp.rightMargin = (int) (8 * dp);
+                TextView btn = UiTheme.makePillButton(this, ep.title, active);
                 btn.setOnClickListener(v -> playEpisode(ep, selectedQuality));
-                TvHelper.applyChipFocus(btn);
-                row.addView(btn, lp);
+                row.addView(btn, pillLp);
             }
             hsv.addView(row);
             infoContainer.addView(hsv);
@@ -442,7 +450,8 @@ public class PlayerActivity extends AppCompatActivity {
         if (detail != null && detail.blurb != null && !detail.blurb.isEmpty()) {
             TextView bt = new TextView(this);
             bt.setText("\n简介：\n" + detail.blurb);
-            bt.setTextSize(12);
+            bt.setTextSize(13);
+            bt.setTextColor(UiTheme.textDim(this));
             infoContainer.addView(bt);
         }
     }

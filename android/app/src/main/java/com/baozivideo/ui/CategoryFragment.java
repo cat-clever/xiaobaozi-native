@@ -55,14 +55,32 @@ public class CategoryFragment extends Fragment {
 
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding((int) (12 * dp), (int) (10 * dp), (int) (12 * dp), 0);
+        root.setBackgroundColor(UiTheme.bg(ctx));
+        root.setPadding((int) (14 * dp), (int) (10 * dp), (int) (14 * dp), 0);
 
         LinearLayout srcRow = new LinearLayout(ctx);
-        Button b1 = new Button(ctx); b1.setText("全网源");
-        Button b2 = new Button(ctx); b2.setText("精选源");
-        b1.setOnClickListener(v -> { source = Models.SourceId.s1; renderFilters(); fetchPage(1); });
-        b2.setOnClickListener(v -> { source = Models.SourceId.s2; renderFilters(); fetchPage(1); });
-        srcRow.addView(b1); srcRow.addView(b2);
+        srcRow.setPadding(0, 0, 0, (int) (8 * dp));
+        TextView b1 = UiTheme.makePillButton(ctx, "全网源", true);
+        TextView b2 = UiTheme.makePillButton(ctx, "精选源", false);
+        LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        bLp.rightMargin = (int) (8 * dp);
+        LinearLayout.LayoutParams b2Lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        b1.setOnClickListener(v -> {
+            source = Models.SourceId.s1;
+            UiTheme.stylePill(b1, true);
+            UiTheme.stylePill(b2, false);
+            renderFilters();
+            fetchPage(1);
+        });
+        b2.setOnClickListener(v -> {
+            source = Models.SourceId.s2;
+            UiTheme.stylePill(b1, false);
+            UiTheme.stylePill(b2, true);
+            renderFilters();
+            fetchPage(1);
+        });
+        srcRow.addView(b1, bLp);
+        srcRow.addView(b2, b2Lp);
         root.addView(srcRow);
 
         filtersBox = new LinearLayout(ctx);
@@ -175,6 +193,7 @@ public class CategoryFragment extends Fragment {
         TextView title = new TextView(ctx);
         title.setText(label + " ");
         title.setTextSize(12);
+        title.setTextColor(UiTheme.textDim(ctx));
         row.addView(title);
 
         for (Models.FilterOption opt : opts) {
@@ -182,12 +201,8 @@ public class CategoryFragment extends Fragment {
             TextView chip = new TextView(ctx);
             chip.setText(opt.label);
             chip.setTextSize(12);
-            chip.setPadding((int) (10 * dp), (int) (4 * dp), (int) (10 * dp), (int) (4 * dp));
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(14 * dp);
-            bg.setColor(active ? 0xFFFFB454 : 0x22888888);
-            chip.setTextColor(active ? 0xFF241503 : 0xFF888888);
-            chip.setBackground(bg);
+            chip.setPadding((int) (12 * dp), (int) (5 * dp), (int) (12 * dp), (int) (5 * dp));
+            UiTheme.stylePill(chip, active);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.rightMargin = (int) (6 * dp);
             chip.setOnClickListener(v -> cb.onSelect(opt.value));

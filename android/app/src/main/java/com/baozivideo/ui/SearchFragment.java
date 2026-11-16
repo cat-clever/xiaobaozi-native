@@ -43,12 +43,19 @@ public class SearchFragment extends Fragment {
 
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding((int) (12 * dp), (int) (12 * dp), (int) (12 * dp), 0);
+        root.setBackgroundColor(UiTheme.bg(ctx));
+        root.setPadding((int) (14 * dp), (int) (10 * dp), (int) (14 * dp), 0);
 
-        LinearLayout bar = new LinearLayout(ctx);
+        LinearLayout bar = UiTheme.makeCard(ctx);
         bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        bar.setPadding((int) (12 * dp), (int) (6 * dp), (int) (8 * dp), (int) (6 * dp));
         input = new EditText(ctx);
         input.setHint("搜剧名、演员…");
+        input.setTextColor(UiTheme.text(ctx));
+        input.setHintTextColor(UiTheme.textDim(ctx));
+        input.setBackground(null);
+        input.setTextSize(14);
         input.setSingleLine(true);
         input.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         input.setOnEditorActionListener((v, actionId, event) -> {
@@ -57,11 +64,12 @@ public class SearchFragment extends Fragment {
         });
         bar.addView(input, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        Button btn = new Button(ctx);
-        btn.setText("搜索");
+        TextView btn = UiTheme.makePillButton(ctx, "搜索", true);
         btn.setOnClickListener(v -> runSearch(input.getText().toString()));
         bar.addView(btn);
-        root.addView(bar);
+        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        barLp.bottomMargin = (int) (8 * dp);
+        root.addView(bar, barLp);
 
         errorTv = new TextView(ctx);
         errorTv.setTextColor(0xFFFF6B6B);
@@ -113,7 +121,8 @@ public class SearchFragment extends Fragment {
         TextView tv = new TextView(ctx);
         tv.setText(title);
         tv.setTextSize(14);
-        tv.setPadding(0, (int) (8 * dp), 0, (int) (4 * dp));
+        tv.setTextColor(UiTheme.text(ctx));
+        tv.setPadding(0, (int) (10 * dp), 0, (int) (6 * dp));
         suggestionsBox.addView(tv);
 
         HorizontalScrollView hsv = new HorizontalScrollView(ctx);
@@ -123,11 +132,8 @@ public class SearchFragment extends Fragment {
             TextView chip = new TextView(ctx);
             chip.setText(kw);
             chip.setTextSize(12);
-            chip.setPadding((int) (10 * dp), (int) (5 * dp), (int) (10 * dp), (int) (5 * dp));
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(14 * dp);
-            bg.setColor(0x22888888);
-            chip.setBackground(bg);
+            chip.setPadding((int) (12 * dp), (int) (6 * dp), (int) (12 * dp), (int) (6 * dp));
+            UiTheme.stylePill(chip, false);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.rightMargin = (int) (6 * dp);
             chip.setOnClickListener(v -> {

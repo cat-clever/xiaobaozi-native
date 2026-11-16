@@ -40,23 +40,25 @@ public class HomeFragment extends Fragment {
         float dp = ctx.getResources().getDisplayMetrics().density;
 
         swipe = new SwipeRefreshLayout(ctx);
+        swipe.setBackgroundColor(UiTheme.bg(ctx));
         ScrollView scroll = new ScrollView(ctx);
         container = new LinearLayout(ctx);
         container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding((int) (12 * dp), (int) (12 * dp), (int) (12 * dp), (int) (24 * dp));
+        container.setPadding((int) (14 * dp), (int) (12 * dp), (int) (14 * dp), (int) (24 * dp));
 
         LinearLayout header = new LinearLayout(ctx);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(0, 0, 0, (int) (8 * dp));
         TextView title = new TextView(ctx);
         title.setText("小包子影视");
         title.setTextSize(24);
+        title.setTextColor(UiTheme.text(ctx));
         title.setTypeface(null, Typeface.BOLD);
         LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         header.addView(title, tLp);
 
-        Button settingsBtn = new Button(ctx);
-        settingsBtn.setText("设置");
+        TextView settingsBtn = UiTheme.makePillButton(ctx, "设置", false);
         settingsBtn.setOnClickListener(v -> startActivity(new Intent(ctx, SettingsActivity.class)));
         header.addView(settingsBtn);
         container.addView(header);
@@ -142,6 +144,7 @@ public class HomeFragment extends Fragment {
             TextView secTitle = new TextView(ctx);
             secTitle.setText(blk.title);
             secTitle.setTextSize(17);
+            secTitle.setTextColor(UiTheme.text(ctx));
             secTitle.setTypeface(null, Typeface.BOLD);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.topMargin = (int) (14 * dp);

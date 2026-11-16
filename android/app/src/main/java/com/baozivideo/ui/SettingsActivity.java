@@ -5,7 +5,7 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Button;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -21,7 +21,7 @@ import com.baozivideo.utils.TvHelper;
 
 public class SettingsActivity extends AppCompatActivity {
     private TextView updateStatusTv;
-    private Button installBtn;
+    private TextView installBtn;
     private UpdaterService.Manifest latestManifest;
 
     @Override
@@ -30,34 +30,42 @@ public class SettingsActivity extends AppCompatActivity {
         float dp = getResources().getDisplayMetrics().density;
 
         ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(UiTheme.bg(this));
+        UiTheme.applySystemBarInsets(scroll, true);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding((int) (16 * dp), (int) (16 * dp), (int) (16 * dp), (int) (24 * dp));
+        root.setPadding((int) (16 * dp), (int) (12 * dp), (int) (16 * dp), (int) (24 * dp));
 
-        Button backBtn = new Button(this);
-        backBtn.setText("‹ 返回");
+        TextView backBtn = UiTheme.makePillButton(this, "‹ 返回", false);
         backBtn.setOnClickListener(v -> finish());
-        root.addView(backBtn);
+        LinearLayout.LayoutParams backLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        root.addView(backBtn, backLp);
         if (TvHelper.isTv(this)) backBtn.requestFocus();
 
         TextView title = new TextView(this);
         title.setText("设置");
-        title.setTextSize(24);
+        title.setTextSize(26);
+        title.setTextColor(UiTheme.text(this));
         title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(0, (int) (8 * dp), 0, (int) (12 * dp));
+        title.setPadding(0, (int) (12 * dp), 0, (int) (14 * dp));
         root.addView(title);
 
         TextView secTheme = new TextView(this);
-        secTheme.setText("外观主题");
-        secTheme.setTypeface(null, Typeface.BOLD);
+        secTheme.setText("外观");
+        secTheme.setTextSize(13);
+        secTheme.setTextColor(UiTheme.textDim(this));
+        secTheme.setPadding((int) (4 * dp), 0, 0, (int) (6 * dp));
         root.addView(secTheme);
 
+        LinearLayout themeCard = UiTheme.makeCard(this);
         RadioGroup rg = new RadioGroup(this);
         String curMode = StorageManager.getInstance().getThemeMode();
         String[][] modes = {{"system", "跟随系统"}, {"dark", "深色"}, {"light", "亮色"}};
         for (String[] m : modes) {
             RadioButton rb = new RadioButton(this);
             rb.setText(m[1]);
+            rb.setTextColor(UiTheme.text(this));
             rb.setTag(m[0]);
             rg.addView(rb);
             if (m[0].equals(curMode)) rb.setChecked(true);
@@ -70,48 +78,62 @@ public class SettingsActivity extends AppCompatActivity {
                 BaoziApplication.applyThemeMode(mode);
             }
         });
-        root.addView(rg);
+        themeCard.addView(rg);
 
         Switch glassSwitch = new Switch(this);
         glassSwitch.setText("液态玻璃效果");
+        glassSwitch.setTextColor(UiTheme.text(this));
+        glassSwitch.setPadding(0, (int) (8 * dp), 0, (int) (4 * dp));
         glassSwitch.setChecked(StorageManager.getInstance().getGlassEnabled());
         glassSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> StorageManager.getInstance().saveGlassEnabled(isChecked));
-        root.addView(glassSwitch);
+        themeCard.addView(glassSwitch);
+        root.addView(themeCard);
 
         TextView secUpdate = new TextView(this);
         secUpdate.setText("版本与更新");
-        secUpdate.setTypeface(null, Typeface.BOLD);
-        secUpdate.setPadding(0, (int) (16 * dp), 0, (int) (6 * dp));
+        secUpdate.setTextSize(13);
+        secUpdate.setTextColor(UiTheme.textDim(this));
+        secUpdate.setPadding((int) (4 * dp), (int) (18 * dp), 0, (int) (6 * dp));
         root.addView(secUpdate);
 
+        LinearLayout updateCard = UiTheme.makeCard(this);
         TextView curVer = new TextView(this);
         curVer.setText("当前版本：" + UpdaterService.getCurrentVersionName(this));
-        root.addView(curVer);
+        curVer.setTextColor(UiTheme.text(this));
+        curVer.setTextSize(14);
+        updateCard.addView(curVer);
 
         updateStatusTv = new TextView(this);
         updateStatusTv.setText("正在检查更新…");
-        updateStatusTv.setPadding(0, (int) (6 * dp), 0, (int) (6 * dp));
-        root.addView(updateStatusTv);
+        updateStatusTv.setTextColor(UiTheme.textDim(this));
+        updateStatusTv.setTextSize(13);
+        updateStatusTv.setPadding(0, (int) (6 * dp), 0, (int) (10 * dp));
+        updateCard.addView(updateStatusTv);
 
-        Button checkBtn = new Button(this);
-        checkBtn.setText("检查更新");
+        LinearLayout btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        TextView checkBtn = UiTheme.makePillButton(this, "检查更新", false);
         checkBtn.setOnClickListener(v -> checkUpdate());
-        root.addView(checkBtn);
+        LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        bLp.rightMargin = (int) (8 * dp);
+        btnRow.addView(checkBtn, bLp);
 
-        installBtn = new Button(this);
-        installBtn.setText("下载并安装新版");
+        installBtn = UiTheme.makePillButton(this, "下载并安装新版", true);
         installBtn.setVisibility(View.GONE);
         installBtn.setOnClickListener(v -> installUpdate());
-        root.addView(installBtn);
+        btnRow.addView(installBtn, bLp);
 
-        Button pageBtn = new Button(this);
-        pageBtn.setText("打开发布页");
+        TextView pageBtn = UiTheme.makePillButton(this, "发布页", false);
         pageBtn.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(UpdaterService.RELEASE_PAGE_URL))));
-        root.addView(pageBtn);
+        btnRow.addView(pageBtn);
+        updateCard.addView(btnRow);
+        root.addView(updateCard);
 
         TextView about = new TextView(this);
         about.setText("\n小包子影视 · 纯 Java 原生版\n端内双源直连，遵循 GPLv3 开源协议。");
+        about.setTextColor(UiTheme.textDim(this));
         about.setTextSize(12);
+        about.setPadding((int) (4 * dp), (int) (12 * dp), 0, 0);
         root.addView(about);
 
         scroll.addView(root);

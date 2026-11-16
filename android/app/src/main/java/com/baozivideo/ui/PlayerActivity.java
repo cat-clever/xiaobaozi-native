@@ -22,6 +22,11 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.lifecycle.Lifecycle;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
@@ -59,8 +64,10 @@ public class PlayerActivity extends AppCompatActivity {
 
     private ExoPlayer player;
     private PlayerView playerView;
+    private LinearLayout root;
     private FrameLayout videoBox;
     private LinearLayout topBtns;
+    private TextView fsBtn;
     private ScrollView detailScroll;
     private ProgressBar loadingBar;
     private LinearLayout infoContainer;
@@ -82,10 +89,19 @@ public class PlayerActivity extends AppCompatActivity {
         currentVodId = item.id;
         float dp = getResources().getDisplayMetrics().density;
 
-        LinearLayout root = new LinearLayout(this);
+        root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(UiTheme.bg(this));
-        UiTheme.applySystemBarInsets(root, true);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            if (isFullscreen || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode())) {
+                v.setPadding(0, 0, 0, 0);
+            } else {
+                Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            }
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(root);
 
         videoBox = new FrameLayout(this);
         videoBox.setBackgroundColor(Color.BLACK);
@@ -119,8 +135,14 @@ public class PlayerActivity extends AppCompatActivity {
         castBtn.setOnClickListener(v -> showCastDialog());
         TextView pipBtn = UiTheme.makeOverlayButton(this, "画中画");
         pipBtn.setOnClickListener(v -> enterPip());
-        TextView fsBtn = UiTheme.makeOverlayButton(this, "全屏");
+        fsBtn = UiTheme.makeOverlayButton(this, "全屏");
         fsBtn.setOnClickListener(v -> toggleFullscreen(videoBox));
+
+        playerView.setControllerVisibilityListener((PlayerView.ControllerVisibilityListener) visibility -> {
+            if (topBtns != null && !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode())) {
+                topBtns.setVisibility(visibility);
+            }
+        });
 
         LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         btnLp.rightMargin = (int) (8 * dp);
@@ -151,10 +173,29 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void toggleFullscreen(FrameLayout videoBox) {
         isFullscreen = !isFullscreen;
-        setRequestedOrientation(isFullscreen ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        setRequestedOrientation(isFullscreen ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (controller != null) {
+            if (isFullscreen) {
+                controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                controller.hide(WindowInsetsCompat.Type.systemBars());
+            } else {
+                controller.show(WindowInsetsCompat.Type.systemBars());
+            }
+        }
+        if (detailScroll != null) {
+            detailScroll.setVisibility(isFullscreen ? View.GONE : View.VISIBLE);
+        }
+        if (fsBtn != null) {
+            fsBtn.setText(isFullscreen ? "退出全屏" : "全屏");
+        }
         ViewGroup.LayoutParams lp = videoBox.getLayoutParams();
         lp.height = isFullscreen ? ViewGroup.LayoutParams.MATCH_PARENT : (int) (240 * getResources().getDisplayMetrics().density);
         videoBox.setLayoutParams(lp);
+        if (root != null) {
+            if (isFullscreen) root.setPadding(0, 0, 0, 0);
+            else ViewCompat.requestApplyInsets(root);
+        }
     }
 
     private void enterPip() {

@@ -18,6 +18,7 @@ struct PlayerView: View {
 
   @State private var stream: ResolvedMediaStream?
   @State private var player = AVPlayer()
+  @State private var nowPlaying = NowPlayingController()
   @State private var playGeneration: Int = 0
   @State private var playbackRate: Float = 1.0
   @State private var loading = true
@@ -431,6 +432,13 @@ struct PlayerView: View {
     if abs(playbackRate - 1.0) > 0.01 {
       player.rate = playbackRate
     }
+    let epTitle = detail?.episodes[safe: episodeIndex]?.title ?? "第\(episodeIndex + 1)集"
+    nowPlaying.attach(
+      player: player,
+      title: detail?.name ?? item.title,
+      episodeTitle: epTitle,
+      artworkUrl: detail?.pic ?? item.coverUrl
+    )
   }
 
   private func saveProgress() {
@@ -469,6 +477,7 @@ struct PlayerView: View {
       applyOrientation(landscape: false)
     }
     saveProgress()
+    nowPlaying.clear()
     player.pause()
     player.replaceCurrentItem(with: nil)
     stream?.dispose()

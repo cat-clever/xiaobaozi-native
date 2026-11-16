@@ -20,13 +20,10 @@ struct PlayerView: View {
   @State private var player = AVPlayer()
   @State private var nowPlaying = NowPlayingController()
   @State private var playGeneration: Int = 0
-  @State private var playbackRate: Float = 1.0
   @State private var loading = true
   @State private var error: String?
   @State private var showCastSheet = false
   @State private var isFullscreen = false
-
-  private let speeds: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
   var body: some View {
     VStack(spacing: 0) {
@@ -122,30 +119,6 @@ struct PlayerView: View {
               Text("当前线路：\(lineName)")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            }
-          }
-
-          // 倍速控制
-          ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-              Text("倍速")
-                .font(.caption)
-                .foregroundColor(.secondary)
-              ForEach(speeds, id: \.self) { sp in
-                let active = abs(playbackRate - sp) < 0.01
-                Button {
-                  playbackRate = sp
-                  player.rate = sp
-                } label: {
-                  Text(sp == 1.0 ? "1.0x" : "\(String(format: "%g", sp))x")
-                    .font(.caption.bold())
-                    .foregroundColor(active ? .black : .primary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(active ? AppColors.accent : Color.secondary.opacity(0.15))
-                    .clipShape(Capsule())
-                }
-              }
             }
           }
 
@@ -431,9 +404,6 @@ struct PlayerView: View {
     UIApplication.shared.isIdleTimerDisabled = true
     player.replaceCurrentItem(with: playerItem)
     player.play()
-    if abs(playbackRate - 1.0) > 0.01 {
-      player.rate = playbackRate
-    }
     let epTitle = detail?.episodes[safe: episodeIndex]?.title ?? "第\(episodeIndex + 1)集"
     nowPlaying.attach(
       player: player,

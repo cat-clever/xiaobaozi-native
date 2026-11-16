@@ -476,24 +476,6 @@ public class PlayerActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         pillLp.rightMargin = (int) (8 * dp);
 
-        // 倍速
-        HorizontalScrollView speedScroll = new HorizontalScrollView(this);
-        speedScroll.setHorizontalScrollBarEnabled(false);
-        LinearLayout speedRow = new LinearLayout(this);
-        speedRow.setPadding(0, (int) (4 * dp), 0, (int) (8 * dp));
-        for (float sp : SPEEDS) {
-            boolean active = Math.abs(playbackSpeed - sp) < 0.01f;
-            TextView b = UiTheme.makePillButton(this, sp + "x", active);
-            b.setOnClickListener(v -> {
-                playbackSpeed = sp;
-                player.setPlaybackParameters(new PlaybackParameters(sp));
-                renderDetailUi();
-            });
-            speedRow.addView(b, pillLp);
-        }
-        speedScroll.addView(speedRow);
-        infoContainer.addView(speedScroll);
-
         // 分季
         if (detail != null && detail.seasons.size() > 1) {
             TextView st = new TextView(this);

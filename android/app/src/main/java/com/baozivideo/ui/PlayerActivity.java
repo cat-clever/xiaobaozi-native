@@ -594,34 +594,10 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void showCastDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("正在搜索 DLNA 设备…");
-        builder.setNegativeButton("关闭", null);
-        if (activeCastDevice != null) {
-            builder.setNeutralButton("停止投屏", (d, w) -> stopCast());
-        }
-        AlertDialog dlg = builder.show();
         new CastDialog(this, new CastDialog.CastHost() {
             @Override
             public Models.CastDevice getActiveDevice() { return activeCastDevice; }
 
-        new Thread(() -> {
-            List<Models.CastDevice> devices = DlnaClient.discoverDevices(this);
-            runOnUiThread(() -> {
-                dlg.dismiss();
-                if (devices.isEmpty()) {
-                    Toast.makeText(this, "未发现 DLNA 电视或盒子", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                String[] names = new String[devices.size()];
-                for (int i = 0; i < devices.size(); i++) names[i] = devices.get(i).name;
-                new AlertDialog.Builder(this)
-                    .setTitle("选择投屏设备")
-                    .setItems(names, (d, idx) -> startCast(devices.get(idx)))
-                    .setNegativeButton("取消", null)
-                    .show();
-            });
-        }).start();
             @Override
             public Models.CastSource getActiveSource() { return activeCastSource; }
 
@@ -636,8 +612,6 @@ public class PlayerActivity extends AppCompatActivity {
             }
         }).show();
     }
-
-    private void startCast(Models.CastDevice device) {
 
     private void startCast(Models.CastDevice device, Runnable onSuccess, java.util.function.Consumer<String> onError) {
         new Thread(() -> {

@@ -98,6 +98,18 @@ public final class DlnaClient {
         soap(device, "Stop", args);
     }
 
+    public static void seek(Models.CastDevice device, double seconds) throws ApiException {
+        long safe = Math.max(0, (long) seconds);
+        long h = safe / 3600;
+        long m = (safe % 3600) / 60;
+        long s = safe % 60;
+        Map<String, String> args = new LinkedHashMap<>();
+        args.put("InstanceID", "0");
+        args.put("Unit", "REL_TIME");
+        args.put("Target", String.format("%d:%02d:%02d", h, m, s));
+        soap(device, "Seek", args);
+    }
+
     public static Models.CastTransportState status(Models.CastDevice device) {
         Models.CastTransportState st = new Models.CastTransportState();
         Map<String, String> args = Collections.singletonMap("InstanceID", "0");
@@ -105,7 +117,23 @@ public final class DlnaClient {
             String info = soap(device, "GetTransportInfo", args);
             st.state = DlnaParse.normalizeState(DlnaParse.tagText(info, "CurrentTransportState"));
         } catch (Exception ignored) {}
+        try {
+            String posInfo = soap(device, "GetPositionInfo", args);
+            st.positionSec = parseRelTime(DlnaParse.tagText(posInfo, "RelTime"));
+            st.durationSec = parseRelTime(DlnaParse.tagText(posInfo, "TrackDuration"));
+        } catch (Exception ignored) {}
         return st;
+    }
+
+    private static Double parseRelTime(String val) {
+        if (val == null || val.isEmpty()) return null;
+        String[] parts = val.trim().split(":");
+        if (parts.length != 3) return null;
+        try {
+            return Double.parseDouble(parts[0]) * 3600 + Double.parseDouble(parts[1]) * 60 + Double.parseDouble(parts[2]);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String soap(Models.CastDevice device, String action, Map<String, String> args) throws ApiException {

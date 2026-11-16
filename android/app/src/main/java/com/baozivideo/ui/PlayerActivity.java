@@ -497,34 +497,26 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void showCastDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("正在搜索 DLNA 设备…");
-        builder.setNegativeButton("关闭", null);
-        if (activeCastDevice != null) {
-            builder.setNeutralButton("停止投屏", (d, w) -> stopCast());
-        }
-        AlertDialog dlg = builder.show();
+        new CastDialog(this, new CastDialog.CastHost() {
+            @Override
+            public Models.CastDevice getActiveDevice() { return activeCastDevice; }
 
-        new Thread(() -> {
-            List<Models.CastDevice> devices = DlnaClient.discoverDevices(this);
-            runOnUiThread(() -> {
-                dlg.dismiss();
-                if (devices.isEmpty()) {
-                    Toast.makeText(this, "未发现 DLNA 电视或盒子", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                String[] names = new String[devices.size()];
-                for (int i = 0; i < devices.size(); i++) names[i] = devices.get(i).name;
-                new AlertDialog.Builder(this)
-                    .setTitle("选择投屏设备")
-                    .setItems(names, (d, idx) -> startCast(devices.get(idx)))
-                    .setNegativeButton("取消", null)
-                    .show();
-            });
-        }).start();
+            @Override
+            public Models.CastSource getActiveSource() { return activeCastSource; }
+
+            @Override
+            public void castToDevice(Models.CastDevice device, Runnable onSuccess, java.util.function.Consumer<String> onError) {
+                startCast(device, onSuccess, onError);
+            }
+
+            @Override
+            public void stopCast(Runnable onDone) {
+                PlayerActivity.this.stopCast(onDone);
+            }
+        }).show();
     }
 
-    private void startCast(Models.CastDevice device) {
+    private void startCast(Models.CastDevice device, Runnable onSuccess, java.util.function.Consumer<String> onError) {
         new Thread(() -> {
             try {
                 if (activeCastSource != null && activeCastSource.dispose != null) activeCastSource.dispose.run();
@@ -540,14 +532,27 @@ public class PlayerActivity extends AppCompatActivity {
                 activeCastSource = src;
                 activeCastDevice = device;
                 if (!src.direct) RelayKeepAliveService.start(this, title);
-                runOnUiThread(() -> Toast.makeText(this, "已投屏到 " + device.name + (src.direct ? "（直投）" : "（转发）"), Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> {
+                    if (player != null) {
+                        player.pause();
+                        updatePlayPauseIcon();
+                    }
+                    Toast.makeText(this, "已投屏到 " + device.name + (src.direct ? "（直投）" : "（转发）"), Toast.LENGTH_SHORT).show();
+                    if (onSuccess != null) onSuccess.run();
+                });
             } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(this, "投屏失败：" + e.getMessage(), Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> {
+                    if (onError != null) onError.accept(e.getMessage());
+                });
             }
         }).start();
     }
 
     private void stopCast() {
+        stopCast(null);
+    }
+
+    private void stopCast(Runnable onDone) {
         new Thread(() -> {
             if (activeCastDevice != null) {
                 try { DlnaClient.stop(activeCastDevice); } catch (Exception ignored) {}
@@ -556,6 +561,7 @@ public class PlayerActivity extends AppCompatActivity {
             activeCastSource = null;
             activeCastDevice = null;
             RelayKeepAliveService.stop(this);
+            if (onDone != null) onDone.run();
         }).start();
     }
 

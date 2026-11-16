@@ -1,5 +1,6 @@
 import Combine
 import SwiftUI
+import UIKit
 
 final class ThemeManager: ObservableObject {
   static let shared = ThemeManager()
@@ -8,12 +9,54 @@ final class ThemeManager: ObservableObject {
     didSet { StorageManager.shared.saveThemeMode(mode) }
   }
   @Published var glassEnabled: Bool {
-    didSet { StorageManager.shared.saveGlassEnabled(glassEnabled) }
+    didSet {
+      StorageManager.shared.saveGlassEnabled(glassEnabled)
+      applyBarAppearance()
+    }
   }
 
   private init() {
     self.mode = StorageManager.shared.getThemeMode()
     self.glassEnabled = StorageManager.shared.getGlassEnabled()
+    applyBarAppearance()
+  }
+
+  func applyBarAppearance() {
+    let tabApp = UITabBarAppearance()
+    let navApp = UINavigationBarAppearance()
+    if glassEnabled {
+      tabApp.configureWithDefaultBackground()
+      navApp.configureWithDefaultBackground()
+    } else {
+      tabApp.configureWithOpaqueBackground()
+      navApp.configureWithOpaqueBackground()
+    }
+    UITabBar.appearance().standardAppearance = tabApp
+    UITabBar.appearance().scrollEdgeAppearance = tabApp
+    UINavigationBar.appearance().standardAppearance = navApp
+    UINavigationBar.appearance().scrollEdgeAppearance = navApp
+
+    DispatchQueue.main.async {
+      for scene in UIApplication.shared.connectedScenes {
+        guard let ws = scene as? UIWindowScene else { continue }
+        for window in ws.windows {
+          Self.refreshBars(in: window, tabApp: tabApp, navApp: navApp)
+        }
+      }
+    }
+  }
+
+  private static func refreshBars(in view: UIView, tabApp: UITabBarAppearance, navApp: UINavigationBarAppearance) {
+    if let tabBar = view as? UITabBar {
+      tabBar.standardAppearance = tabApp
+      tabBar.scrollEdgeAppearance = tabApp
+    } else if let navBar = view as? UINavigationBar {
+      navBar.standardAppearance = navApp
+      navBar.scrollEdgeAppearance = navApp
+    }
+    for sub in view.subviews {
+      refreshBars(in: sub, tabApp: tabApp, navApp: navApp)
+    }
   }
 
   var colorScheme: ColorScheme? {

@@ -6,8 +6,8 @@ options:
   xcodeVersion: "16.0"
 settings:
   base:
-    MARKETING_VERSION: "1.0.9"
-    CURRENT_PROJECT_VERSION: "10"
+    MARKETING_VERSION: "1.0.10"
+    CURRENT_PROJECT_VERSION: "11"
     SWIFT_VERSION: "5.9"
     PRODUCT_BUNDLE_IDENTIFIER: com.xiaobaozi.video.ios
     INFOPLIST_FILE: BaoziVideo/Info.plist

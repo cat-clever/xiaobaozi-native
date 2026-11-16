@@ -687,7 +687,7 @@ public class PlayerActivity extends AppCompatActivity {
         videoBox.addView(controlsOverlay,
                 new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // 顶部栏：左上返回，右上投屏 + 画中画（纯图标）
+        // 顶部栏：左上返回，右上投屏 + 画中画 + 齿轮设置（最右上角）
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -717,6 +717,13 @@ public class PlayerActivity extends AppCompatActivity {
         pipBtn.setOnClickListener(v -> enterPip());
         topBar.addView(pipBtn);
 
+        ImageView gearBtn = makeIconBtn(dp, R.drawable.ic_player_settings, 36);
+        gearBtn.setOnClickListener(v -> {
+            showSpeedDialog();
+            scheduleHideControls();
+        });
+        topBar.addView(gearBtn);
+
         FrameLayout.LayoutParams topLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         topLp.gravity = Gravity.TOP;
@@ -741,19 +748,12 @@ public class PlayerActivity extends AppCompatActivity {
         centerLp.gravity = Gravity.CENTER;
         controlsOverlay.addView(playPauseBtn, centerLp);
 
-        // 底部栏：左下全屏图标 + 当前时间 + 进度条 + 总时长 + 右下齿轮图标（同一水平线）
+        // 底部栏：当前时间 + 进度条 + 总时长 + 最右全屏图标（同一水平线）
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
         bottomBar.setGravity(Gravity.CENTER_VERTICAL);
         bottomBar.setBackgroundColor(0x66000000);
         bottomBar.setPadding((int) (6 * dp), (int) (4 * dp), (int) (6 * dp), (int) (4 * dp));
-
-        fsBtn = makeIconBtn(dp, R.drawable.ic_player_fullscreen, 32);
-        fsBtn.setOnClickListener(v -> {
-            toggleFullscreen(videoBox);
-            scheduleHideControls();
-        });
-        bottomBar.addView(fsBtn);
 
         curTimeTv = new TextView(this);
         curTimeTv.setText("00:00");
@@ -795,12 +795,12 @@ public class PlayerActivity extends AppCompatActivity {
         durTimeTv.setPadding((int) (4 * dp), 0, (int) (4 * dp), 0);
         bottomBar.addView(durTimeTv);
 
-        ImageView gearBtn = makeIconBtn(dp, R.drawable.ic_player_settings, 32);
-        gearBtn.setOnClickListener(v -> {
-            showSpeedDialog();
+        fsBtn = makeIconBtn(dp, R.drawable.ic_player_fullscreen, 32);
+        fsBtn.setOnClickListener(v -> {
+            toggleFullscreen(videoBox);
             scheduleHideControls();
         });
-        bottomBar.addView(gearBtn);
+        bottomBar.addView(fsBtn);
 
         FrameLayout.LayoutParams bottomLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);

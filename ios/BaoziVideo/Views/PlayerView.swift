@@ -22,6 +22,7 @@ struct PlayerView: View {
   @State private var loading = true
   @State private var error: String?
   @State private var showCastSheet = false
+  @State private var isFullscreen = false
 
   private let speeds: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
@@ -44,12 +45,18 @@ struct PlayerView: View {
             .background(Color.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
         }
       }
-      .frame(height: 240)
+      .frame(maxWidth: .infinity, maxHeight: isFullscreen ? .infinity : 240)
+      .frame(height: isFullscreen ? nil : 240)
+      .ignoresSafeArea(isFullscreen ? .all : [])
       .overlay(alignment: .topLeading) {
         HStack {
           Button {
-            cleanup()
-            onClose()
+            if isFullscreen {
+              toggleFullscreen()
+            } else {
+              cleanup()
+              onClose()
+            }
           } label: {
             Image(systemName: "chevron.left")
               .font(.system(size: 16, weight: .bold))
@@ -70,13 +77,23 @@ struct PlayerView: View {
                 .padding(8)
                 .background(Color.black.opacity(0.5), in: Circle())
             }
+            Button {
+              toggleFullscreen()
+            } label: {
+              Image(systemName: isFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(8)
+                .background(Color.black.opacity(0.5), in: Circle())
+            }
           }
         }
         .padding(10)
       }
 
-      // 详情与选集区
-      ScrollView {
+      if !isFullscreen {
+        // 详情与选集区
+        ScrollView {
         VStack(alignment: .leading, spacing: 16) {
           if let error {
             Text(error)
@@ -267,6 +284,7 @@ struct PlayerView: View {
         }
         .padding(16)
       }
+      }
     }
     .sheet(isPresented: $showCastSheet) {
       CastSheetView(
@@ -393,7 +411,25 @@ struct PlayerView: View {
     }
   }
 
+  private func toggleFullscreen() {
+    isFullscreen.toggle()
+    applyOrientation(landscape: isFullscreen)
+  }
+
+  private func applyOrientation(landscape: Bool) {
+    let mask: UIInterfaceOrientationMask = landscape ? .landscapeRight : .portrait
+    for scene in UIApplication.shared.connectedScenes {
+      guard let windowScene = scene as? UIWindowScene else { continue }
+      windowScene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+      windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { _ in }
+    }
+  }
+
   private func cleanup() {
+    if isFullscreen {
+      isFullscreen = false
+      applyOrientation(landscape: false)
+    }
     saveProgress()
     player?.pause()
     player = nil

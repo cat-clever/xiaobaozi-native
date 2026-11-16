@@ -31,7 +31,7 @@ struct PlayerView: View {
       ZStack {
         Color.black
         if let player {
-          VideoPlayer(player: player)
+          NativeVideoPlayerView(player: player)
             .onDisappear {
               saveProgress()
             }
@@ -365,9 +365,13 @@ struct PlayerView: View {
       error = "播放地址无效"
       return
     }
+    try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+    try? AVAudioSession.sharedInstance().setActive(true)
     let asset = AVURLAsset(url: url)
     let playerItem = AVPlayerItem(asset: asset)
     let p = AVPlayer(playerItem: playerItem)
+    p.allowsExternalPlayback = true
+    p.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
     p.rate = playbackRate
     player = p
     p.play()
@@ -401,5 +405,27 @@ struct PlayerView: View {
 private extension Array {
   subscript(safe index: Int) -> Element? {
     indices.contains(index) ? self[index] : nil
+  }
+}
+
+private struct NativeVideoPlayerView: UIViewControllerRepresentable {
+  let player: AVPlayer
+
+  func makeUIViewController(context: Context) -> AVPlayerViewController {
+    let vc = AVPlayerViewController()
+    vc.player = player
+    vc.allowsPictureInPicturePlayback = true
+    if #available(iOS 14.2, *) {
+      vc.canStartPictureInPictureAutomaticallyFromInline = true
+    }
+    vc.entersFullScreenWhenPlaybackBegins = false
+    vc.exitsFullScreenWhenPlaybackEnds = false
+    return vc
+  }
+
+  func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+    if uiViewController.player !== player {
+      uiViewController.player = player
+    }
   }
 }

@@ -3,6 +3,7 @@ package com.baozivideo.ui;
 import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -20,6 +21,9 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.Lifecycle;
+import androidx.media3.common.AudioAttributes;
+import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -53,6 +57,9 @@ public class PlayerActivity extends AppCompatActivity {
 
     private ExoPlayer player;
     private PlayerView playerView;
+    private FrameLayout videoBox;
+    private LinearLayout topBtns;
+    private ScrollView detailScroll;
     private ProgressBar loadingBar;
     private LinearLayout infoContainer;
     private TextView errorTv;
@@ -75,10 +82,17 @@ public class PlayerActivity extends AppCompatActivity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
 
-        FrameLayout videoBox = new FrameLayout(this);
+        videoBox = new FrameLayout(this);
         videoBox.setBackgroundColor(Color.BLACK);
         playerView = new PlayerView(this);
-        player = new ExoPlayer.Builder(this).build();
+        AudioAttributes audioAttrs = new AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build();
+        player = new ExoPlayer.Builder(this)
+            .setAudioAttributes(audioAttrs, true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .build();
         playerView.setPlayer(player);
         videoBox.addView(playerView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -87,7 +101,7 @@ public class PlayerActivity extends AppCompatActivity {
         lpLoad.gravity = android.view.Gravity.CENTER;
         videoBox.addView(loadingBar, lpLoad);
 
-        LinearLayout topBtns = new LinearLayout(this);
+        topBtns = new LinearLayout(this);
         topBtns.setOrientation(LinearLayout.HORIZONTAL);
         Button backBtn = new Button(this); backBtn.setText("‹");
         backBtn.setOnClickListener(v -> finish());
@@ -106,7 +120,7 @@ public class PlayerActivity extends AppCompatActivity {
 
         root.addView(videoBox, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (240 * dp)));
 
-        ScrollView scroll = new ScrollView(this);
+        detailScroll = new ScrollView(this);
         infoContainer = new LinearLayout(this);
         infoContainer.setOrientation(LinearLayout.VERTICAL);
         infoContainer.setPadding((int) (14 * dp), (int) (12 * dp), (int) (14 * dp), (int) (24 * dp));
@@ -116,8 +130,8 @@ public class PlayerActivity extends AppCompatActivity {
         errorTv.setVisibility(View.GONE);
         infoContainer.addView(errorTv);
 
-        scroll.addView(infoContainer);
-        root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        detailScroll.addView(infoContainer);
+        root.addView(detailScroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         setContentView(root);
 
         loadDetailAndPlay(currentVodId, 0);
@@ -137,6 +151,40 @@ public class PlayerActivity extends AppCompatActivity {
                 .setAspectRatio(new Rational(16, 9))
                 .build();
             enterPictureInPictureMode(params);
+        }
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && player != null && player.isPlaying()) {
+            enterPip();
+        }
+    }
+
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        if (playerView != null) {
+            playerView.setUseController(!isInPictureInPictureMode);
+        }
+        if (topBtns != null) {
+            topBtns.setVisibility(isInPictureInPictureMode ? View.GONE : View.VISIBLE);
+        }
+        if (detailScroll != null) {
+            detailScroll.setVisibility(isInPictureInPictureMode ? View.GONE : View.VISIBLE);
+        }
+        if (videoBox != null) {
+            ViewGroup.LayoutParams lp = videoBox.getLayoutParams();
+            if (isInPictureInPictureMode || isFullscreen) {
+                lp.height = ViewGroup.LayoutParams.MATCH_PARENT;
+            } else {
+                lp.height = (int) (240 * getResources().getDisplayMetrics().density);
+            }
+            videoBox.setLayoutParams(lp);
+        }
+        if (!isInPictureInPictureMode && getLifecycle().getCurrentState() == Lifecycle.State.CREATED) {
+            if (player != null) player.pause();
         }
     }
 

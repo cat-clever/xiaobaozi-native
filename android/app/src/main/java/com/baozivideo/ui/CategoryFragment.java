@@ -46,7 +46,8 @@ public class CategoryFragment extends Fragment {
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup parent, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup parent,
+            @Nullable Bundle savedInstanceState) {
         Context ctx = requireContext();
         float dp = ctx.getResources().getDisplayMetrics().density;
         int screenW = ctx.getResources().getDisplayMetrics().widthPixels;
@@ -123,12 +124,16 @@ public class CategoryFragment extends Fragment {
         new Thread(() -> {
             try {
                 tree1 = Source1Service.categoryTree();
-                if (!tree1.categories.isEmpty()) s1TypeId = Integer.parseInt(tree1.categories.get(0).value);
-            } catch (Exception ignored) {}
+                if (!tree1.categories.isEmpty())
+                    s1TypeId = Integer.parseInt(tree1.categories.get(0).value);
+            } catch (Exception ignored) {
+            }
             try {
                 tree2 = Source2Service.categoryTree();
-                if (!tree2.groups.isEmpty()) s2Stype = tree2.groups.get(0).value;
-            } catch (Exception ignored) {}
+                if (!tree2.groups.isEmpty())
+                    s2Stype = tree2.groups.get(0).value;
+            } catch (Exception ignored) {
+            }
             if (isAdded()) {
                 requireActivity().runOnUiThread(() -> {
                     renderFilters();
@@ -139,22 +144,35 @@ public class CategoryFragment extends Fragment {
     }
 
     private void renderFilters() {
-        if (!isAdded()) return;
+        if (!isAdded())
+            return;
         filtersBox.removeAllViews();
         if (source == Models.SourceId.s1 && tree1 != null) {
             addChipRow("频道", tree1.categories, String.valueOf(s1TypeId), val -> {
-                s1TypeId = Integer.parseInt(val); s1Genre = ""; s1Tag = "";
-                renderFilters(); fetchPage(1);
+                s1TypeId = Integer.parseInt(val);
+                s1Genre = "";
+                s1Tag = "";
+                renderFilters();
+                fetchPage(1);
             });
             for (Models.FilterRow r : Source1Service.filterRowsFor(tree1, s1TypeId, s1Genre)) {
-                String sel = "题材".equals(r.title) ? s1Genre : ("标签".equals(r.title) ? s1Tag : ("地区".equals(r.title) ? s1Area : ("年份".equals(r.title) ? s1Year : s1Sort)));
+                String sel = "题材".equals(r.title) ? s1Genre
+                        : ("标签".equals(r.title) ? s1Tag
+                                : ("地区".equals(r.title) ? s1Area : ("年份".equals(r.title) ? s1Year : s1Sort)));
                 addChipRow(r.title, r.options, sel, val -> {
-                    if ("题材".equals(r.title)) { s1Genre = val; s1Tag = ""; }
-                    else if ("标签".equals(r.title)) s1Tag = val;
-                    else if ("地区".equals(r.title)) s1Area = val;
-                    else if ("年份".equals(r.title)) s1Year = val;
-                    else s1Sort = val;
-                    renderFilters(); fetchPage(1);
+                    if ("题材".equals(r.title)) {
+                        s1Genre = val;
+                        s1Tag = "";
+                    } else if ("标签".equals(r.title))
+                        s1Tag = val;
+                    else if ("地区".equals(r.title))
+                        s1Area = val;
+                    else if ("年份".equals(r.title))
+                        s1Year = val;
+                    else
+                        s1Sort = val;
+                    renderFilters();
+                    fetchPage(1);
                 });
             }
         } else if (source == Models.SourceId.s2 && tree2 != null) {
@@ -163,23 +181,39 @@ public class CategoryFragment extends Fragment {
                 grpOpts.add(new Models.FilterOption(g.label, String.valueOf(g.value)));
             }
             addChipRow("分组", grpOpts, s2Stype == null ? "" : String.valueOf(s2Stype), val -> {
-                s2Stype = Integer.parseInt(val); s2Cid = null;
-                renderFilters(); fetchPage(1);
+                s2Stype = Integer.parseInt(val);
+                s2Cid = null;
+                renderFilters();
+                fetchPage(1);
             });
             for (Source2Client.CateResult.Group g : tree2.groups) {
                 if (s2Stype != null && g.value == s2Stype) {
                     addChipRow("分类", g.cates, s2Cid == null ? "" : String.valueOf(s2Cid), val -> {
-                        s2Cid = Integer.parseInt(val); renderFilters(); fetchPage(1);
+                        s2Cid = Integer.parseInt(val);
+                        renderFilters();
+                        fetchPage(1);
                     });
                     break;
                 }
             }
-            if (!tree2.years.isEmpty()) addChipRow("年份", tree2.years, s2Year, val -> { s2Year = val; renderFilters(); fetchPage(1); });
-            if (!tree2.sorts.isEmpty()) addChipRow("排序", tree2.sorts, s2Sort, val -> { s2Sort = val; renderFilters(); fetchPage(1); });
+            if (!tree2.years.isEmpty())
+                addChipRow("年份", tree2.years, s2Year, val -> {
+                    s2Year = val;
+                    renderFilters();
+                    fetchPage(1);
+                });
+            if (!tree2.sorts.isEmpty())
+                addChipRow("排序", tree2.sorts, s2Sort, val -> {
+                    s2Sort = val;
+                    renderFilters();
+                    fetchPage(1);
+                });
         }
     }
 
-    private interface ChipSelect { void onSelect(String val); }
+    private interface ChipSelect {
+        void onSelect(String val);
+    }
 
     private void addChipRow(String label, List<Models.FilterOption> opts, String selected, ChipSelect cb) {
         Context ctx = requireContext();
@@ -203,7 +237,8 @@ public class CategoryFragment extends Fragment {
             chip.setTextSize(12);
             chip.setPadding((int) (12 * dp), (int) (5 * dp), (int) (12 * dp), (int) (5 * dp));
             UiTheme.stylePill(chip, active);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.rightMargin = (int) (6 * dp);
             chip.setOnClickListener(v -> cb.onSelect(opt.value));
             TvHelper.applyChipFocus(chip);
@@ -225,10 +260,17 @@ public class CategoryFragment extends Fragment {
         Models.CategoryQuery q = new Models.CategoryQuery();
         q.page = targetPage;
         if (source == Models.SourceId.s1) {
-            q.typeId = s1TypeId; q.typeValue = s1Genre; q.tagType = s1Tag;
-            q.area = s1Area; q.year = s1Year; q.sort = s1Sort;
+            q.typeId = s1TypeId;
+            q.typeValue = s1Genre;
+            q.tagType = s1Tag;
+            q.area = s1Area;
+            q.year = s1Year;
+            q.sort = s1Sort;
         } else {
-            q.stype = s2Stype; q.cid = s2Cid; q.year = s2Year; q.sort = s2Sort;
+            q.stype = s2Stype;
+            q.cid = s2Cid;
+            q.year = s2Year;
+            q.sort = s2Sort;
         }
 
         new Thread(() -> {
@@ -238,9 +280,12 @@ public class CategoryFragment extends Fragment {
                     requireActivity().runOnUiThread(() -> {
                         progress.setVisibility(View.GONE);
                         loading = false;
-                        if (targetPage == 1) adapter.setItems(list);
-                        else adapter.appendItems(list);
-                        if (list.isEmpty()) reachedEnd = true;
+                        if (targetPage == 1)
+                            adapter.setItems(list);
+                        else
+                            adapter.appendItems(list);
+                        if (list.isEmpty())
+                            reachedEnd = true;
                     });
                 }
             } catch (Exception e) {

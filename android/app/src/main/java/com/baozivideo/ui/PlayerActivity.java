@@ -9,16 +9,20 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Rational;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -32,8 +36,10 @@ import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackParameters;
+import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
+import com.baozivideo.R;
 import com.baozivideo.api.Aggregator;
 import com.baozivideo.api.source1.Source1Service;
 import com.baozivideo.api.source2.Source2Service;
@@ -66,8 +72,15 @@ public class PlayerActivity extends AppCompatActivity {
     private PlayerView playerView;
     private LinearLayout root;
     private FrameLayout videoBox;
-    private LinearLayout topBtns;
-    private TextView fsBtn;
+    private FrameLayout controlsOverlay;
+    private ImageView playPauseBtn;
+    private ImageView fsBtn;
+    private TextView curTimeTv;
+    private TextView durTimeTv;
+    private SeekBar seekBar;
+    private boolean isDraggingSeek = false;
+    private boolean controlsVisible = true;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private ScrollView detailScroll;
     private ProgressBar loadingBar;
     private LinearLayout infoContainer;
@@ -115,42 +128,25 @@ public class PlayerActivity extends AppCompatActivity {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build();
         playerView.setPlayer(player);
+        playerView.setUseController(false);
         playerView.setFocusable(true);
         videoBox.addView(playerView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         loadingBar = new ProgressBar(this);
         FrameLayout.LayoutParams lpLoad = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lpLoad.gravity = android.view.Gravity.CENTER;
+        lpLoad.gravity = Gravity.CENTER;
         videoBox.addView(loadingBar, lpLoad);
 
-        topBtns = new LinearLayout(this);
-        topBtns.setOrientation(LinearLayout.HORIZONTAL);
-        topBtns.setPadding((int) (10 * dp), (int) (10 * dp), (int) (10 * dp), 0);
-        TextView backBtn = UiTheme.makeOverlayButton(this, "‹ 返回");
-        backBtn.setOnClickListener(v -> {
-            if (isFullscreen) toggleFullscreen(videoBox);
-            else finish();
-        });
-        TextView castBtn = UiTheme.makeOverlayButton(this, "投屏");
-        castBtn.setOnClickListener(v -> showCastDialog());
-        TextView pipBtn = UiTheme.makeOverlayButton(this, "画中画");
-        pipBtn.setOnClickListener(v -> enterPip());
-        fsBtn = UiTheme.makeOverlayButton(this, "全屏");
-        fsBtn.setOnClickListener(v -> toggleFullscreen(videoBox));
-
-        playerView.setControllerVisibilityListener((PlayerView.ControllerVisibilityListener) visibility -> {
-            if (topBtns != null && !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode())) {
-                topBtns.setVisibility(visibility);
+        buildCustomControls(dp);
+        videoBox.setOnClickListener(v -> toggleControls());
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onIsPlayingChanged(boolean isPlaying) {
+                updatePlayPauseIcon();
+                if (isPlaying) scheduleHideControls();
             }
         });
-
-        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        btnLp.rightMargin = (int) (8 * dp);
-        topBtns.addView(backBtn, btnLp);
-        topBtns.addView(castBtn, btnLp);
-        topBtns.addView(pipBtn, btnLp);
-        topBtns.addView(fsBtn);
-        videoBox.addView(topBtns);
+        startProgressTicker();
 
         root.addView(videoBox, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (240 * dp)));
 
@@ -187,7 +183,7 @@ public class PlayerActivity extends AppCompatActivity {
             detailScroll.setVisibility(isFullscreen ? View.GONE : View.VISIBLE);
         }
         if (fsBtn != null) {
-            fsBtn.setText(isFullscreen ? "退出全屏" : "全屏");
+            fsBtn.setImageResource(isFullscreen ? R.drawable.ic_player_fullscreen_exit : R.drawable.ic_player_fullscreen);
         }
         ViewGroup.LayoutParams lp = videoBox.getLayoutParams();
         lp.height = isFullscreen ? ViewGroup.LayoutParams.MATCH_PARENT : (int) (240 * getResources().getDisplayMetrics().density);
@@ -218,11 +214,8 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
-        if (playerView != null) {
-            playerView.setUseController(!isInPictureInPictureMode);
-        }
-        if (topBtns != null) {
-            topBtns.setVisibility(isInPictureInPictureMode ? View.GONE : View.VISIBLE);
+        if (controlsOverlay != null) {
+            controlsOverlay.setVisibility(isInPictureInPictureMode ? View.GONE : View.VISIBLE);
         }
         if (detailScroll != null) {
             detailScroll.setVisibility(isInPictureInPictureMode ? View.GONE : View.VISIBLE);
@@ -565,6 +558,199 @@ public class PlayerActivity extends AppCompatActivity {
         errorTv.setVisibility(View.VISIBLE);
     }
 
+    private void buildCustomControls(float dp) {
+        controlsOverlay = new FrameLayout(this);
+        videoBox.addView(controlsOverlay, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // 顶部栏：左上返回，右上投屏 + 画中画（纯图标）
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setOrientation(LinearLayout.HORIZONTAL);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        topBar.setBackgroundColor(0x55000000);
+        topBar.setPadding((int) (8 * dp), (int) (6 * dp), (int) (8 * dp), (int) (6 * dp));
+
+        ImageView backBtn = makeIconBtn(dp, R.drawable.ic_player_back, 36);
+        backBtn.setOnClickListener(v -> {
+            if (isFullscreen) toggleFullscreen(videoBox);
+            else finish();
+        });
+        topBar.addView(backBtn);
+
+        View spacer = new View(this);
+        topBar.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
+
+        ImageView castBtn = makeIconBtn(dp, R.drawable.ic_player_cast, 36);
+        castBtn.setOnClickListener(v -> { showCastDialog(); scheduleHideControls(); });
+        topBar.addView(castBtn);
+
+        ImageView pipBtn = makeIconBtn(dp, R.drawable.ic_player_pip, 36);
+        pipBtn.setOnClickListener(v -> enterPip());
+        topBar.addView(pipBtn);
+
+        FrameLayout.LayoutParams topLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        topLp.gravity = Gravity.TOP;
+        controlsOverlay.addView(topBar, topLp);
+
+        // 中央播放/暂停按钮
+        playPauseBtn = makeIconBtn(dp, R.drawable.ic_player_pause, 52);
+        GradientDrawable centerBg = new GradientDrawable();
+        centerBg.setShape(GradientDrawable.OVAL);
+        centerBg.setColor(0x88000000);
+        playPauseBtn.setBackground(centerBg);
+        playPauseBtn.setPadding((int) (10 * dp), (int) (10 * dp), (int) (10 * dp), (int) (10 * dp));
+        playPauseBtn.setOnClickListener(v -> {
+            if (player.isPlaying()) player.pause();
+            else player.play();
+            updatePlayPauseIcon();
+            scheduleHideControls();
+        });
+        FrameLayout.LayoutParams centerLp = new FrameLayout.LayoutParams((int) (52 * dp), (int) (52 * dp));
+        centerLp.gravity = Gravity.CENTER;
+        controlsOverlay.addView(playPauseBtn, centerLp);
+
+        // 底部栏：左下全屏图标 + 当前时间 + 进度条 + 总时长 + 右下齿轮图标（同一水平线）
+        LinearLayout bottomBar = new LinearLayout(this);
+        bottomBar.setOrientation(LinearLayout.HORIZONTAL);
+        bottomBar.setGravity(Gravity.CENTER_VERTICAL);
+        bottomBar.setBackgroundColor(0x66000000);
+        bottomBar.setPadding((int) (6 * dp), (int) (4 * dp), (int) (6 * dp), (int) (4 * dp));
+
+        fsBtn = makeIconBtn(dp, R.drawable.ic_player_fullscreen, 32);
+        fsBtn.setOnClickListener(v -> { toggleFullscreen(videoBox); scheduleHideControls(); });
+        bottomBar.addView(fsBtn);
+
+        curTimeTv = new TextView(this);
+        curTimeTv.setText("00:00");
+        curTimeTv.setTextColor(Color.WHITE);
+        curTimeTv.setTextSize(11);
+        curTimeTv.setPadding((int) (4 * dp), 0, (int) (4 * dp), 0);
+        bottomBar.addView(curTimeTv);
+
+        seekBar = new SeekBar(this);
+        seekBar.getProgressDrawable().setTint(0xFFFFB454);
+        seekBar.getThumb().setTint(0xFFFFB454);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                if (fromUser && curTimeTv != null) curTimeTv.setText(formatTime(progress));
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar sb) {
+                isDraggingSeek = true;
+                uiHandler.removeCallbacks(hideControlsTask);
+            }
+            @Override
+            public void onStopTrackingTouch(SeekBar sb) {
+                isDraggingSeek = false;
+                if (player != null) player.seekTo(sb.getProgress());
+                scheduleHideControls();
+            }
+        });
+        bottomBar.addView(seekBar, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        durTimeTv = new TextView(this);
+        durTimeTv.setText("00:00");
+        durTimeTv.setTextColor(Color.WHITE);
+        durTimeTv.setTextSize(11);
+        durTimeTv.setPadding((int) (4 * dp), 0, (int) (4 * dp), 0);
+        bottomBar.addView(durTimeTv);
+
+        ImageView gearBtn = makeIconBtn(dp, R.drawable.ic_player_settings, 32);
+        gearBtn.setOnClickListener(v -> { showSpeedDialog(); scheduleHideControls(); });
+        bottomBar.addView(gearBtn);
+
+        FrameLayout.LayoutParams bottomLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        bottomLp.gravity = Gravity.BOTTOM;
+        controlsOverlay.addView(bottomBar, bottomLp);
+
+        scheduleHideControls();
+    }
+
+    private ImageView makeIconBtn(float dp, int resId, int sizeDp) {
+        ImageView iv = new ImageView(this);
+        iv.setImageResource(resId);
+        int pad = (int) (6 * dp);
+        iv.setPadding(pad, pad, pad, pad);
+        iv.setLayoutParams(new LinearLayout.LayoutParams((int) (sizeDp * dp), (int) (sizeDp * dp)));
+        TvHelper.applyChipFocus(iv);
+        return iv;
+    }
+
+    private void showSpeedDialog() {
+        String[] labels = new String[SPEEDS.length];
+        for (int i = 0; i < SPEEDS.length; i++) labels[i] = SPEEDS[i] + "x";
+        new AlertDialog.Builder(this)
+            .setTitle("播放倍速")
+            .setItems(labels, (d, idx) -> {
+                playbackSpeed = SPEEDS[idx];
+                if (player != null) player.setPlaybackParameters(new PlaybackParameters(playbackSpeed));
+                renderDetailUi();
+            })
+            .show();
+    }
+
+    private final Runnable hideControlsTask = () -> {
+        if (controlsOverlay != null && player != null && player.isPlaying()) {
+            controlsVisible = false;
+            controlsOverlay.setVisibility(View.GONE);
+        }
+    };
+
+    private void toggleControls() {
+        if (controlsOverlay == null) return;
+        controlsVisible = !controlsVisible;
+        controlsOverlay.setVisibility(controlsVisible ? View.VISIBLE : View.GONE);
+        if (controlsVisible) scheduleHideControls();
+    }
+
+    private void showControllerNow() {
+        if (controlsOverlay == null) return;
+        controlsVisible = true;
+        controlsOverlay.setVisibility(View.VISIBLE);
+        scheduleHideControls();
+    }
+
+    private void scheduleHideControls() {
+        uiHandler.removeCallbacks(hideControlsTask);
+        uiHandler.postDelayed(hideControlsTask, 4000);
+    }
+
+    private void updatePlayPauseIcon() {
+        if (playPauseBtn != null && player != null) {
+            playPauseBtn.setImageResource(player.isPlaying() ? R.drawable.ic_player_pause : R.drawable.ic_player_play);
+        }
+    }
+
+    private final Runnable progressTicker = new Runnable() {
+        @Override
+        public void run() {
+            if (player != null && !isDraggingSeek) {
+                long dur = Math.max(0, player.getDuration());
+                long pos = Math.max(0, player.getCurrentPosition());
+                if (dur > 0 && seekBar != null) {
+                    seekBar.setMax((int) dur);
+                    seekBar.setProgress((int) pos);
+                }
+                if (curTimeTv != null) curTimeTv.setText(formatTime(pos));
+                if (durTimeTv != null) durTimeTv.setText(formatTime(dur));
+            }
+            uiHandler.postDelayed(this, 500);
+        }
+    };
+
+    private void startProgressTicker() {
+        uiHandler.removeCallbacks(progressTicker);
+        uiHandler.post(progressTicker);
+    }
+
+    private static String formatTime(long ms) {
+        long totalSec = Math.max(0, ms / 1000);
+        long h = totalSec / 3600;
+        long m = (totalSec % 3600) / 60;
+        long s = totalSec % 60;
+        return h > 0 ? String.format("%d:%02d:%02d", h, m, s) : String.format("%02d:%02d", m, s);
+    }
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN && player != null) {
@@ -572,23 +758,23 @@ public class PlayerActivity extends AppCompatActivity {
             if (code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
                 if (player.isPlaying()) player.pause();
                 else player.play();
-                playerView.showController();
+                showControllerNow();
                 return true;
             } else if (code == KeyEvent.KEYCODE_MEDIA_PLAY) {
                 player.play();
-                playerView.showController();
+                showControllerNow();
                 return true;
             } else if (code == KeyEvent.KEYCODE_MEDIA_PAUSE) {
                 player.pause();
-                playerView.showController();
+                showControllerNow();
                 return true;
             } else if (code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_RIGHT && playerView.hasFocus())) {
                 player.seekTo(Math.max(0, player.getCurrentPosition() + 10000));
-                playerView.showController();
+                showControllerNow();
                 return true;
             } else if (code == KeyEvent.KEYCODE_MEDIA_REWIND || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_LEFT && playerView.hasFocus())) {
                 player.seekTo(Math.max(0, player.getCurrentPosition() - 10000));
-                playerView.showController();
+                showControllerNow();
                 return true;
             } else if (code == KeyEvent.KEYCODE_BACK && isFullscreen) {
                 toggleFullscreen(videoBox);
@@ -600,6 +786,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        uiHandler.removeCallbacksAndMessages(null);
         if (player != null) {
             long pos = player.getCurrentPosition() / 1000;
             if (pos > 0) {

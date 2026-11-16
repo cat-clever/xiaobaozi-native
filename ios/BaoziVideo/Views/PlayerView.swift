@@ -427,6 +427,8 @@ struct PlayerView: View {
     let playerItem = AVPlayerItem(asset: asset)
     player.allowsExternalPlayback = true
     player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+    player.preventsDisplaySleepDuringVideoPlayback = true
+    UIApplication.shared.isIdleTimerDisabled = true
     player.replaceCurrentItem(with: playerItem)
     player.play()
     if abs(playbackRate - 1.0) > 0.01 {
@@ -471,6 +473,7 @@ struct PlayerView: View {
   }
 
   private func cleanup() {
+    UIApplication.shared.isIdleTimerDisabled = false
     playGeneration += 1
     if isFullscreen {
       isFullscreen = false

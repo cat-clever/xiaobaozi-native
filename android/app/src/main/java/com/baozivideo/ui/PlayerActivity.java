@@ -150,8 +150,16 @@ public class PlayerActivity extends AppCompatActivity {
                 } else {
                     getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isInPictureInPictureMode()) {
+                    setPictureInPictureParams(buildPipParams());
+                }
             }
         });
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(pipReceiver, new IntentFilter(ACTION_PIP_CONTROL), Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(pipReceiver, new IntentFilter(ACTION_PIP_CONTROL));
+        }
         startProgressTicker();
 
         root.addView(videoBox, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (240 * dp)));
@@ -202,11 +210,37 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void enterPip() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            PictureInPictureParams params = new PictureInPictureParams.Builder()
-                .setAspectRatio(new Rational(16, 9))
-                .build();
-            enterPictureInPictureMode(params);
+            enterPictureInPictureMode(buildPipParams());
         }
+    }
+
+    @androidx.annotation.RequiresApi(api = Build.VERSION_CODES.O)
+    private PictureInPictureParams buildPipParams() {
+        java.util.ArrayList<RemoteAction> actions = new java.util.ArrayList<>();
+        actions.add(makePipAction(android.R.drawable.ic_media_rew, "快退10秒", PIP_REWIND));
+        boolean playing = player != null && player.isPlaying();
+        actions.add(makePipAction(
+            playing ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
+            playing ? "暂停" : "播放",
+            PIP_TOGGLE
+        ));
+        actions.add(makePipAction(android.R.drawable.ic_media_ff, "快进10秒", PIP_FORWARD));
+        return new PictureInPictureParams.Builder()
+            .setAspectRatio(new Rational(16, 9))
+            .setActions(actions)
+            .build();
+    }
+
+    @androidx.annotation.RequiresApi(api = Build.VERSION_CODES.O)
+    private RemoteAction makePipAction(int iconRes, String title, int type) {
+        Intent intent = new Intent(ACTION_PIP_CONTROL).setPackage(getPackageName()).putExtra(EXTRA_PIP_TYPE, type);
+        PendingIntent pi = PendingIntent.getBroadcast(
+            this,
+            type,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        return new RemoteAction(Icon.createWithResource(this, iconRes), title, title, pi);
     }
 
     @Override
@@ -798,6 +832,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        try { unregisterReceiver(pipReceiver); } catch (Exception ignored) {}
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         uiHandler.removeCallbacksAndMessages(null);
         if (player != null) {

@@ -1,12 +1,19 @@
 package com.baozivideo.ui;
 
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.app.PictureInPictureParams;
+import android.app.RemoteAction;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -90,7 +97,32 @@ public class PlayerActivity extends AppCompatActivity {
     private boolean isFullscreen = false;
     private int playGeneration = 0;
 
-    private static final float[] SPEEDS = {0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f};
+    private static final float[] SPEEDS = { 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f };
+    private static final String ACTION_PIP_CONTROL = "com.baozivideo.PIP_CONTROL";
+    private static final String EXTRA_PIP_TYPE = "pip_type";
+    private static final int PIP_REWIND = 1;
+    private static final int PIP_TOGGLE = 2;
+    private static final int PIP_FORWARD = 3;
+
+    private final BroadcastReceiver pipReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null || !ACTION_PIP_CONTROL.equals(intent.getAction()) || player == null) return;
+            int type = intent.getIntExtra(EXTRA_PIP_TYPE, 0);
+            if (type == PIP_REWIND) {
+                player.seekTo(Math.max(0, player.getCurrentPosition() - 10000));
+            } else if (type == PIP_FORWARD) {
+                player.seekTo(Math.max(0, player.getCurrentPosition() + 10000));
+            } else if (type == PIP_TOGGLE) {
+                if (player.isPlaying()) player.pause();
+                else player.play();
+                updatePlayPauseIcon();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isInPictureInPictureMode()) {
+                    setPictureInPictureParams(buildPipParams());
+                }
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,20 +153,22 @@ public class PlayerActivity extends AppCompatActivity {
         videoBox.setBackgroundColor(Color.BLACK);
         playerView = new PlayerView(this);
         AudioAttributes audioAttrs = new AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-            .build();
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build();
         player = new ExoPlayer.Builder(this)
-            .setAudioAttributes(audioAttrs, true)
-            .setWakeMode(C.WAKE_MODE_NETWORK)
-            .build();
+                .setAudioAttributes(audioAttrs, true)
+                .setWakeMode(C.WAKE_MODE_NETWORK)
+                .build();
         playerView.setPlayer(player);
         playerView.setUseController(false);
         playerView.setFocusable(true);
-        videoBox.addView(playerView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        videoBox.addView(playerView,
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         loadingBar = new ProgressBar(this);
-        FrameLayout.LayoutParams lpLoad = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        FrameLayout.LayoutParams lpLoad = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
         lpLoad.gravity = Gravity.CENTER;
         videoBox.addView(loadingBar, lpLoad);
 
@@ -183,8 +217,10 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void toggleFullscreen(FrameLayout videoBox) {
         isFullscreen = !isFullscreen;
-        setRequestedOrientation(isFullscreen ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        setRequestedOrientation(isFullscreen ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(),
+                getWindow().getDecorView());
         if (controller != null) {
             if (isFullscreen) {
                 controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
@@ -197,14 +233,18 @@ public class PlayerActivity extends AppCompatActivity {
             detailScroll.setVisibility(isFullscreen ? View.GONE : View.VISIBLE);
         }
         if (fsBtn != null) {
-            fsBtn.setImageResource(isFullscreen ? R.drawable.ic_player_fullscreen_exit : R.drawable.ic_player_fullscreen);
+            fsBtn.setImageResource(
+                    isFullscreen ? R.drawable.ic_player_fullscreen_exit : R.drawable.ic_player_fullscreen);
         }
         ViewGroup.LayoutParams lp = videoBox.getLayoutParams();
-        lp.height = isFullscreen ? ViewGroup.LayoutParams.MATCH_PARENT : (int) (240 * getResources().getDisplayMetrics().density);
+        lp.height = isFullscreen ? ViewGroup.LayoutParams.MATCH_PARENT
+                : (int) (240 * getResources().getDisplayMetrics().density);
         videoBox.setLayoutParams(lp);
         if (root != null) {
-            if (isFullscreen) root.setPadding(0, 0, 0, 0);
-            else ViewCompat.requestApplyInsets(root);
+            if (isFullscreen)
+                root.setPadding(0, 0, 0, 0);
+            else
+                ViewCompat.requestApplyInsets(root);
         }
     }
 
@@ -270,7 +310,8 @@ public class PlayerActivity extends AppCompatActivity {
             videoBox.setLayoutParams(lp);
         }
         if (!isInPictureInPictureMode && getLifecycle().getCurrentState() == Lifecycle.State.CREATED) {
-            if (player != null) player.pause();
+            if (player != null)
+                player.pause();
         }
     }
 
@@ -336,16 +377,20 @@ public class PlayerActivity extends AppCompatActivity {
                     resolved = StreamResolver.resolveSource1(lines, selectedLine);
                 } else {
                     s2Candidates = Source2Service.playFor(currentVodId, ep, quality);
-                    if (s2Candidates.isEmpty()) throw new Exception("没有拿到播放地址");
+                    if (s2Candidates.isEmpty())
+                        throw new Exception("没有拿到播放地址");
                     resolved = StreamResolver.resolveSource2Candidate(s2Candidates.get(0));
                 }
                 if (gen != playGeneration) {
-                    if (resolved.dispose != null) resolved.dispose.run();
+                    if (resolved.dispose != null)
+                        resolved.dispose.run();
                     return;
                 }
                 runOnUiThread(() -> {
-                    if (gen == playGeneration) startPlayback(resolved);
-                    else if (resolved.dispose != null) resolved.dispose.run();
+                    if (gen == playGeneration)
+                        startPlayback(resolved);
+                    else if (resolved.dispose != null)
+                        resolved.dispose.run();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
@@ -374,12 +419,15 @@ public class PlayerActivity extends AppCompatActivity {
             try {
                 Models.ResolvedMediaStream resolved = StreamResolver.resolveSource1(lines, line);
                 if (gen != playGeneration) {
-                    if (resolved.dispose != null) resolved.dispose.run();
+                    if (resolved.dispose != null)
+                        resolved.dispose.run();
                     return;
                 }
                 runOnUiThread(() -> {
-                    if (gen == playGeneration) startPlayback(resolved);
-                    else if (resolved.dispose != null) resolved.dispose.run();
+                    if (gen == playGeneration)
+                        startPlayback(resolved);
+                    else if (resolved.dispose != null)
+                        resolved.dispose.run();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
@@ -424,7 +472,8 @@ public class PlayerActivity extends AppCompatActivity {
             infoContainer.addView(lineTv);
         }
 
-        LinearLayout.LayoutParams pillLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams pillLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
         pillLp.rightMargin = (int) (8 * dp);
 
         // 倍速
@@ -447,7 +496,10 @@ public class PlayerActivity extends AppCompatActivity {
 
         // 分季
         if (detail != null && detail.seasons.size() > 1) {
-            TextView st = new TextView(this); st.setText("分季"); st.setTextColor(UiTheme.text(this)); st.setTypeface(null, Typeface.BOLD);
+            TextView st = new TextView(this);
+            st.setText("分季");
+            st.setTextColor(UiTheme.text(this));
+            st.setTypeface(null, Typeface.BOLD);
             st.setPadding(0, (int) (8 * dp), 0, (int) (4 * dp));
             infoContainer.addView(st);
             HorizontalScrollView hsv = new HorizontalScrollView(this);
@@ -464,7 +516,10 @@ public class PlayerActivity extends AppCompatActivity {
 
         // 源1线路
         if (!lines.isEmpty()) {
-            TextView lt = new TextView(this); lt.setText("线路"); lt.setTextColor(UiTheme.text(this)); lt.setTypeface(null, Typeface.BOLD);
+            TextView lt = new TextView(this);
+            lt.setText("线路");
+            lt.setTextColor(UiTheme.text(this));
+            lt.setTypeface(null, Typeface.BOLD);
             lt.setPadding(0, (int) (8 * dp), 0, (int) (4 * dp));
             infoContainer.addView(lt);
             HorizontalScrollView hsv = new HorizontalScrollView(this);
@@ -473,7 +528,8 @@ public class PlayerActivity extends AppCompatActivity {
             for (Models.PlayLine l : lines) {
                 TextView b = UiTheme.makePillButton(this, l.name, selectedLine == l);
                 b.setEnabled(l.playable);
-                if (!l.playable) b.setAlpha(0.45f);
+                if (!l.playable)
+                    b.setAlpha(0.45f);
                 b.setOnClickListener(v -> switchS1Line(l));
                 row.addView(b, pillLp);
             }
@@ -483,7 +539,10 @@ public class PlayerActivity extends AppCompatActivity {
 
         // 源2清晰度
         if (detail != null && !detail.qualities.isEmpty()) {
-            TextView qt = new TextView(this); qt.setText("清晰度"); qt.setTextColor(UiTheme.text(this)); qt.setTypeface(null, Typeface.BOLD);
+            TextView qt = new TextView(this);
+            qt.setText("清晰度");
+            qt.setTextColor(UiTheme.text(this));
+            qt.setTypeface(null, Typeface.BOLD);
             qt.setPadding(0, (int) (8 * dp), 0, (int) (4 * dp));
             infoContainer.addView(qt);
             HorizontalScrollView hsv = new HorizontalScrollView(this);
@@ -494,7 +553,8 @@ public class PlayerActivity extends AppCompatActivity {
                 TextView b = UiTheme.makePillButton(this, q.label, active);
                 b.setOnClickListener(v -> {
                     selectedQuality = q.value;
-                    if (episodeIndex < detail.episodes.size()) playEpisode(detail.episodes.get(episodeIndex), q.value);
+                    if (episodeIndex < detail.episodes.size())
+                        playEpisode(detail.episodes.get(episodeIndex), q.value);
                 });
                 row.addView(b, pillLp);
             }
@@ -504,7 +564,10 @@ public class PlayerActivity extends AppCompatActivity {
 
         // 选集
         if (detail != null && !detail.episodes.isEmpty()) {
-            TextView et = new TextView(this); et.setText("选集（" + detail.episodes.size() + "）"); et.setTextColor(UiTheme.text(this)); et.setTypeface(null, Typeface.BOLD);
+            TextView et = new TextView(this);
+            et.setText("选集（" + detail.episodes.size() + "）");
+            et.setTextColor(UiTheme.text(this));
+            et.setTypeface(null, Typeface.BOLD);
             et.setPadding(0, (int) (10 * dp), 0, (int) (6 * dp));
             infoContainer.addView(et);
             HorizontalScrollView hsv = new HorizontalScrollView(this);
@@ -531,10 +594,34 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void showCastDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("正在搜索 DLNA 设备…");
+        builder.setNegativeButton("关闭", null);
+        if (activeCastDevice != null) {
+            builder.setNeutralButton("停止投屏", (d, w) -> stopCast());
+        }
+        AlertDialog dlg = builder.show();
         new CastDialog(this, new CastDialog.CastHost() {
             @Override
             public Models.CastDevice getActiveDevice() { return activeCastDevice; }
 
+        new Thread(() -> {
+            List<Models.CastDevice> devices = DlnaClient.discoverDevices(this);
+            runOnUiThread(() -> {
+                dlg.dismiss();
+                if (devices.isEmpty()) {
+                    Toast.makeText(this, "未发现 DLNA 电视或盒子", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] names = new String[devices.size()];
+                for (int i = 0; i < devices.size(); i++) names[i] = devices.get(i).name;
+                new AlertDialog.Builder(this)
+                    .setTitle("选择投屏设备")
+                    .setItems(names, (d, idx) -> startCast(devices.get(idx)))
+                    .setNegativeButton("取消", null)
+                    .show();
+            });
+        }).start();
             @Override
             public Models.CastSource getActiveSource() { return activeCastSource; }
 
@@ -550,33 +637,45 @@ public class PlayerActivity extends AppCompatActivity {
         }).show();
     }
 
+    private void startCast(Models.CastDevice device) {
+
     private void startCast(Models.CastDevice device, Runnable onSuccess, java.util.function.Consumer<String> onError) {
         new Thread(() -> {
             try {
-                if (activeCastSource != null && activeCastSource.dispose != null) activeCastSource.dispose.run();
+                if (activeCastSource != null && activeCastSource.dispose != null)
+                    activeCastSource.dispose.run();
                 Models.CastSource src;
                 if (item.sourceId == Models.SourceId.s1) {
                     src = StreamResolver.castSourceForSource1(lines, selectedLine);
                 } else {
-                    if (s2Candidates.isEmpty()) throw new Exception("没有可投屏的地址");
+                    if (s2Candidates.isEmpty())
+                        throw new Exception("没有可投屏的地址");
                     src = StreamResolver.castSourceForSource2Candidate(s2Candidates.get(0));
                 }
                 String title = (detail != null ? detail.name : item.title) + " - 第" + (episodeIndex + 1) + "集";
                 DlnaClient.cast(device, src.url, title);
                 activeCastSource = src;
                 activeCastDevice = device;
-                if (!src.direct) RelayKeepAliveService.start(this, title);
+                if (!src.direct)
+                    RelayKeepAliveService.start(this, title);
+                runOnUiThread(() -> Toast
+                        .makeText(this, "已投屏到 " + device.name + (src.direct ? "（直投）" : "（转发）"), Toast.LENGTH_LONG)
+                        .show());
                 runOnUiThread(() -> {
                     if (player != null) {
                         player.pause();
                         updatePlayPauseIcon();
                     }
-                    Toast.makeText(this, "已投屏到 " + device.name + (src.direct ? "（直投）" : "（转发）"), Toast.LENGTH_SHORT).show();
-                    if (onSuccess != null) onSuccess.run();
+                    Toast.makeText(this, "已投屏到 " + device.name + (src.direct ? "（直投）" : "（转发）"), Toast.LENGTH_SHORT)
+                            .show();
+                    if (onSuccess != null)
+                        onSuccess.run();
                 });
             } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, "投屏失败：" + e.getMessage(), Toast.LENGTH_LONG).show());
                 runOnUiThread(() -> {
-                    if (onError != null) onError.accept(e.getMessage());
+                    if (onError != null)
+                        onError.accept(e.getMessage());
                 });
             }
         }).start();
@@ -589,13 +688,18 @@ public class PlayerActivity extends AppCompatActivity {
     private void stopCast(Runnable onDone) {
         new Thread(() -> {
             if (activeCastDevice != null) {
-                try { DlnaClient.stop(activeCastDevice); } catch (Exception ignored) {}
+                try {
+                    DlnaClient.stop(activeCastDevice);
+                } catch (Exception ignored) {
+                }
             }
-            if (activeCastSource != null && activeCastSource.dispose != null) activeCastSource.dispose.run();
+            if (activeCastSource != null && activeCastSource.dispose != null)
+                activeCastSource.dispose.run();
             activeCastSource = null;
             activeCastDevice = null;
             RelayKeepAliveService.stop(this);
-            if (onDone != null) onDone.run();
+            if (onDone != null)
+                onDone.run();
         }).start();
     }
 
@@ -606,7 +710,8 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void buildCustomControls(float dp) {
         controlsOverlay = new FrameLayout(this);
-        videoBox.addView(controlsOverlay, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        videoBox.addView(controlsOverlay,
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // 顶部栏：左上返回，右上投屏 + 画中画（纯图标）
         LinearLayout topBar = new LinearLayout(this);
@@ -617,8 +722,10 @@ public class PlayerActivity extends AppCompatActivity {
 
         ImageView backBtn = makeIconBtn(dp, R.drawable.ic_player_back, 36);
         backBtn.setOnClickListener(v -> {
-            if (isFullscreen) toggleFullscreen(videoBox);
-            else finish();
+            if (isFullscreen)
+                toggleFullscreen(videoBox);
+            else
+                finish();
         });
         topBar.addView(backBtn);
 
@@ -626,14 +733,18 @@ public class PlayerActivity extends AppCompatActivity {
         topBar.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
 
         ImageView castBtn = makeIconBtn(dp, R.drawable.ic_player_cast, 36);
-        castBtn.setOnClickListener(v -> { showCastDialog(); scheduleHideControls(); });
+        castBtn.setOnClickListener(v -> {
+            showCastDialog();
+            scheduleHideControls();
+        });
         topBar.addView(castBtn);
 
         ImageView pipBtn = makeIconBtn(dp, R.drawable.ic_player_pip, 36);
         pipBtn.setOnClickListener(v -> enterPip());
         topBar.addView(pipBtn);
 
-        FrameLayout.LayoutParams topLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        FrameLayout.LayoutParams topLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
         topLp.gravity = Gravity.TOP;
         controlsOverlay.addView(topBar, topLp);
 
@@ -645,8 +756,10 @@ public class PlayerActivity extends AppCompatActivity {
         playPauseBtn.setBackground(centerBg);
         playPauseBtn.setPadding((int) (10 * dp), (int) (10 * dp), (int) (10 * dp), (int) (10 * dp));
         playPauseBtn.setOnClickListener(v -> {
-            if (player.isPlaying()) player.pause();
-            else player.play();
+            if (player.isPlaying())
+                player.pause();
+            else
+                player.play();
             updatePlayPauseIcon();
             scheduleHideControls();
         });
@@ -662,7 +775,10 @@ public class PlayerActivity extends AppCompatActivity {
         bottomBar.setPadding((int) (6 * dp), (int) (4 * dp), (int) (6 * dp), (int) (4 * dp));
 
         fsBtn = makeIconBtn(dp, R.drawable.ic_player_fullscreen, 32);
-        fsBtn.setOnClickListener(v -> { toggleFullscreen(videoBox); scheduleHideControls(); });
+        fsBtn.setOnClickListener(v -> {
+            toggleFullscreen(videoBox);
+            scheduleHideControls();
+        });
         bottomBar.addView(fsBtn);
 
         curTimeTv = new TextView(this);
@@ -678,17 +794,21 @@ public class PlayerActivity extends AppCompatActivity {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
-                if (fromUser && curTimeTv != null) curTimeTv.setText(formatTime(progress));
+                if (fromUser && curTimeTv != null)
+                    curTimeTv.setText(formatTime(progress));
             }
+
             @Override
             public void onStartTrackingTouch(SeekBar sb) {
                 isDraggingSeek = true;
                 uiHandler.removeCallbacks(hideControlsTask);
             }
+
             @Override
             public void onStopTrackingTouch(SeekBar sb) {
                 isDraggingSeek = false;
-                if (player != null) player.seekTo(sb.getProgress());
+                if (player != null)
+                    player.seekTo(sb.getProgress());
                 scheduleHideControls();
             }
         });
@@ -702,10 +822,14 @@ public class PlayerActivity extends AppCompatActivity {
         bottomBar.addView(durTimeTv);
 
         ImageView gearBtn = makeIconBtn(dp, R.drawable.ic_player_settings, 32);
-        gearBtn.setOnClickListener(v -> { showSpeedDialog(); scheduleHideControls(); });
+        gearBtn.setOnClickListener(v -> {
+            showSpeedDialog();
+            scheduleHideControls();
+        });
         bottomBar.addView(gearBtn);
 
-        FrameLayout.LayoutParams bottomLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        FrameLayout.LayoutParams bottomLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
         bottomLp.gravity = Gravity.BOTTOM;
         controlsOverlay.addView(bottomBar, bottomLp);
 
@@ -724,15 +848,17 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void showSpeedDialog() {
         String[] labels = new String[SPEEDS.length];
-        for (int i = 0; i < SPEEDS.length; i++) labels[i] = SPEEDS[i] + "x";
+        for (int i = 0; i < SPEEDS.length; i++)
+            labels[i] = SPEEDS[i] + "x";
         new AlertDialog.Builder(this)
-            .setTitle("播放倍速")
-            .setItems(labels, (d, idx) -> {
-                playbackSpeed = SPEEDS[idx];
-                if (player != null) player.setPlaybackParameters(new PlaybackParameters(playbackSpeed));
-                renderDetailUi();
-            })
-            .show();
+                .setTitle("播放倍速")
+                .setItems(labels, (d, idx) -> {
+                    playbackSpeed = SPEEDS[idx];
+                    if (player != null)
+                        player.setPlaybackParameters(new PlaybackParameters(playbackSpeed));
+                    renderDetailUi();
+                })
+                .show();
     }
 
     private final Runnable hideControlsTask = () -> {
@@ -743,14 +869,17 @@ public class PlayerActivity extends AppCompatActivity {
     };
 
     private void toggleControls() {
-        if (controlsOverlay == null) return;
+        if (controlsOverlay == null)
+            return;
         controlsVisible = !controlsVisible;
         controlsOverlay.setVisibility(controlsVisible ? View.VISIBLE : View.GONE);
-        if (controlsVisible) scheduleHideControls();
+        if (controlsVisible)
+            scheduleHideControls();
     }
 
     private void showControllerNow() {
-        if (controlsOverlay == null) return;
+        if (controlsOverlay == null)
+            return;
         controlsVisible = true;
         controlsOverlay.setVisibility(View.VISIBLE);
         scheduleHideControls();
@@ -767,22 +896,7 @@ public class PlayerActivity extends AppCompatActivity {
         }
     }
 
-    private final Runnable progressTicker = new Runnable() {
-        @Override
-        public void run() {
-            if (player != null && !isDraggingSeek) {
-                long dur = Math.max(0, player.getDuration());
-                long pos = Math.max(0, player.getCurrentPosition());
-                if (dur > 0 && seekBar != null) {
-                    seekBar.setMax((int) dur);
-                    seekBar.setProgress((int) pos);
-                }
-                if (curTimeTv != null) curTimeTv.setText(formatTime(pos));
-                if (durTimeTv != null) durTimeTv.setText(formatTime(dur));
-            }
-            uiHandler.postDelayed(this, 500);
-        }
-    };
+    private final Runnable progressTicker=new Runnable(){@Override public void run(){if(player!=null&&!isDraggingSeek){long dur=Math.max(0,player.getDuration());long pos=Math.max(0,player.getCurrentPosition());if(dur>0&&seekBar!=null){seekBar.setMax((int)dur);seekBar.setProgress((int)pos);}if(curTimeTv!=null)curTimeTv.setText(formatTime(pos));if(durTimeTv!=null)durTimeTv.setText(formatTime(dur));}uiHandler.postDelayed(this,500);}};
 
     private void startProgressTicker() {
         uiHandler.removeCallbacks(progressTicker);
@@ -802,8 +916,10 @@ public class PlayerActivity extends AppCompatActivity {
         if (event.getAction() == KeyEvent.ACTION_DOWN && player != null) {
             int code = event.getKeyCode();
             if (code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
-                if (player.isPlaying()) player.pause();
-                else player.play();
+                if (player.isPlaying())
+                    player.pause();
+                else
+                    player.play();
                 showControllerNow();
                 return true;
             } else if (code == KeyEvent.KEYCODE_MEDIA_PLAY) {
@@ -814,11 +930,13 @@ public class PlayerActivity extends AppCompatActivity {
                 player.pause();
                 showControllerNow();
                 return true;
-            } else if (code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_RIGHT && playerView.hasFocus())) {
+            } else if (code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
+                    || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_RIGHT && playerView.hasFocus())) {
                 player.seekTo(Math.max(0, player.getCurrentPosition() + 10000));
                 showControllerNow();
                 return true;
-            } else if (code == KeyEvent.KEYCODE_MEDIA_REWIND || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_LEFT && playerView.hasFocus())) {
+            } else if (code == KeyEvent.KEYCODE_MEDIA_REWIND
+                    || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_LEFT && playerView.hasFocus())) {
                 player.seekTo(Math.max(0, player.getCurrentPosition() - 10000));
                 showControllerNow();
                 return true;
@@ -838,11 +956,13 @@ public class PlayerActivity extends AppCompatActivity {
         if (player != null) {
             long pos = player.getCurrentPosition() / 1000;
             if (pos > 0) {
-                StorageManager.getInstance().saveWatchRecord(item.id, item.sourceId.name(), item.title, item.coverUrl, episodeIndex, pos);
+                StorageManager.getInstance().saveWatchRecord(item.id, item.sourceId.name(), item.title, item.coverUrl,
+                        episodeIndex, pos);
             }
             player.release();
         }
-        if (currentStream != null && currentStream.dispose != null) currentStream.dispose.run();
+        if (currentStream != null && currentStream.dispose != null)
+            currentStream.dispose.run();
         stopCast();
         super.onDestroy();
     }

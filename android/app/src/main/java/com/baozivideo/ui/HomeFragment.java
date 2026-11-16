@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.baozivideo.api.Aggregator;
 import com.baozivideo.model.Models;
+import com.baozivideo.utils.TvHelper;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -114,7 +115,7 @@ public class HomeFragment extends Fragment {
         Context ctx = requireContext();
         float dp = ctx.getResources().getDisplayMetrics().density;
         int screenW = ctx.getResources().getDisplayMetrics().widthPixels;
-        int cols = screenW > 1400 ? 6 : 3;
+        int cols = (TvHelper.isTv(ctx) || screenW > 1400) ? 6 : 3;
         int cardW = (screenW - (int) (36 * dp) - (int) (12 * dp * cols)) / cols;
 
         while (container.getChildCount() > 2) {
@@ -148,6 +149,8 @@ public class HomeFragment extends Fragment {
             container.addView(secTitle, lp);
 
             RecyclerView rv = new RecyclerView(ctx);
+            rv.setClipChildren(false);
+            rv.setClipToPadding(false);
             rv.setLayoutManager(new LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false));
             MediaCardAdapter adapter = new MediaCardAdapter(cardW, item -> {
                 Intent it = new Intent(ctx, PlayerActivity.class);

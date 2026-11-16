@@ -10,6 +10,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Rational;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -36,6 +37,7 @@ import com.baozivideo.cast.RelayKeepAliveService;
 import com.baozivideo.media.StreamResolver;
 import com.baozivideo.model.Models;
 import com.baozivideo.utils.StorageManager;
+import com.baozivideo.utils.TvHelper;
 import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
@@ -95,6 +97,7 @@ public class PlayerActivity extends AppCompatActivity {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build();
         playerView.setPlayer(player);
+        playerView.setFocusable(true);
         videoBox.addView(playerView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         loadingBar = new ProgressBar(this);
@@ -428,6 +431,7 @@ public class PlayerActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 lp.rightMargin = (int) (8 * dp);
                 btn.setOnClickListener(v -> playEpisode(ep, selectedQuality));
+                TvHelper.applyChipFocus(btn);
                 row.addView(btn, lp);
             }
             hsv.addView(row);
@@ -509,6 +513,39 @@ public class PlayerActivity extends AppCompatActivity {
     private void showError(String msg) {
         errorTv.setText(msg);
         errorTv.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN && player != null) {
+            int code = event.getKeyCode();
+            if (code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+                if (player.isPlaying()) player.pause();
+                else player.play();
+                playerView.showController();
+                return true;
+            } else if (code == KeyEvent.KEYCODE_MEDIA_PLAY) {
+                player.play();
+                playerView.showController();
+                return true;
+            } else if (code == KeyEvent.KEYCODE_MEDIA_PAUSE) {
+                player.pause();
+                playerView.showController();
+                return true;
+            } else if (code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_RIGHT && playerView.hasFocus())) {
+                player.seekTo(Math.max(0, player.getCurrentPosition() + 10000));
+                playerView.showController();
+                return true;
+            } else if (code == KeyEvent.KEYCODE_MEDIA_REWIND || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_LEFT && playerView.hasFocus())) {
+                player.seekTo(Math.max(0, player.getCurrentPosition() - 10000));
+                playerView.showController();
+                return true;
+            } else if (code == KeyEvent.KEYCODE_BACK && isFullscreen) {
+                toggleFullscreen(videoBox);
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     @Override

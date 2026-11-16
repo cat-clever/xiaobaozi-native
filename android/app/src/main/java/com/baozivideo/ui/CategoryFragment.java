@@ -23,6 +23,7 @@ import com.baozivideo.api.source1.Source1Service;
 import com.baozivideo.api.source2.Source2Client;
 import com.baozivideo.api.source2.Source2Service;
 import com.baozivideo.model.Models;
+import com.baozivideo.utils.TvHelper;
 import java.util.List;
 
 public class CategoryFragment extends Fragment {
@@ -49,7 +50,7 @@ public class CategoryFragment extends Fragment {
         Context ctx = requireContext();
         float dp = ctx.getResources().getDisplayMetrics().density;
         int screenW = ctx.getResources().getDisplayMetrics().widthPixels;
-        int cols = screenW > 1400 ? 6 : 3;
+        int cols = (TvHelper.isTv(ctx) || screenW > 1400) ? 6 : 3;
         int cardW = (screenW - (int) (24 * dp) - (int) (12 * dp * cols)) / cols;
 
         LinearLayout root = new LinearLayout(ctx);
@@ -190,6 +191,7 @@ public class CategoryFragment extends Fragment {
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.rightMargin = (int) (6 * dp);
             chip.setOnClickListener(v -> cb.onSelect(opt.value));
+            TvHelper.applyChipFocus(chip);
             row.addView(chip, lp);
         }
         hsv.addView(row);

@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.baozivideo.api.source1.Source1Constants;
 import com.baozivideo.model.Models;
+import com.baozivideo.utils.TvHelper;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.LazyHeaders;
@@ -115,6 +116,7 @@ public class MediaCardAdapter extends RecyclerView.Adapter<MediaCardAdapter.VH> 
         tLp.topMargin = (int) (6 * dp);
         root.addView(posterBox);
         root.addView(title, tLp);
+        TvHelper.applyCardFocus(root, posterBox);
 
         return new VH(root, image, badge, rating, remarks, title);
     }

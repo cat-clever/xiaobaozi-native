@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.baozivideo.api.Aggregator;
 import com.baozivideo.api.source1.Source1Service;
 import com.baozivideo.utils.StorageManager;
+import com.baozivideo.utils.TvHelper;
 import java.util.List;
 
 public class SearchFragment extends Fragment {
@@ -37,7 +38,7 @@ public class SearchFragment extends Fragment {
         Context ctx = requireContext();
         float dp = ctx.getResources().getDisplayMetrics().density;
         int screenW = ctx.getResources().getDisplayMetrics().widthPixels;
-        int cols = screenW > 1400 ? 6 : 3;
+        int cols = (TvHelper.isTv(ctx) || screenW > 1400) ? 6 : 3;
         int cardW = (screenW - (int) (24 * dp) - (int) (12 * dp * cols)) / cols;
 
         LinearLayout root = new LinearLayout(ctx);
@@ -133,6 +134,7 @@ public class SearchFragment extends Fragment {
                 input.setText(kw);
                 runSearch(kw);
             });
+            TvHelper.applyChipFocus(chip);
             row.addView(chip, lp);
         }
         hsv.addView(row);

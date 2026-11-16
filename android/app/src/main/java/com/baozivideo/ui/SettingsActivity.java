@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.baozivideo.BaoziApplication;
 import com.baozivideo.update.UpdaterService;
 import com.baozivideo.utils.StorageManager;
+import com.baozivideo.utils.TvHelper;
 
 public class SettingsActivity extends AppCompatActivity {
     private TextView updateStatusTv;
@@ -37,6 +38,7 @@ public class SettingsActivity extends AppCompatActivity {
         backBtn.setText("‹ 返回");
         backBtn.setOnClickListener(v -> finish());
         root.addView(backBtn);
+        if (TvHelper.isTv(this)) backBtn.requestFocus();
 
         TextView title = new TextView(this);
         title.setText("设置");

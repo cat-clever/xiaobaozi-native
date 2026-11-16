@@ -1,6 +1,6 @@
 package com.baozivideo.ui;
 
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.PendingIntent;
 import android.app.PictureInPictureParams;
 import android.app.RemoteAction;
@@ -23,6 +23,7 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -747,11 +748,18 @@ public class PlayerActivity extends AppCompatActivity {
         seekBar = new SeekBar(this);
         seekBar.getProgressDrawable().setTint(0xFFFFB454);
         seekBar.getThumb().setTint(0xFFFFB454);
+        TvHelper.applySeekBarFocus(seekBar);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
-                if (fromUser && curTimeTv != null)
-                    curTimeTv.setText(formatTime(progress));
+                if (fromUser) {
+                    if (curTimeTv != null)
+                        curTimeTv.setText(formatTime(progress));
+                    if (!isDraggingSeek && player != null) {
+                        player.seekTo(progress);
+                        scheduleHideControls();
+                    }
+                }
             }
 
             @Override
@@ -803,18 +811,100 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void showSpeedDialog() {
-        String[] labels = new String[SPEEDS.length];
-        for (int i = 0; i < SPEEDS.length; i++)
-            labels[i] = SPEEDS[i] + "x";
-        new AlertDialog.Builder(this)
-                .setTitle("播放倍速")
-                .setItems(labels, (d, idx) -> {
-                    playbackSpeed = SPEEDS[idx];
-                    if (player != null)
-                        player.setPlaybackParameters(new PlaybackParameters(playbackSpeed));
-                    renderDetailUi();
-                })
-                .show();
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setCancelable(true);
+        dialog.setCanceledOnTouchOutside(true);
+
+        float dp = getResources().getDisplayMetrics().density;
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding((int) (16 * dp), (int) (16 * dp), (int) (16 * dp), (int) (16 * dp));
+        GradientDrawable rootBg = new GradientDrawable();
+        rootBg.setCornerRadius(20 * dp);
+        rootBg.setColor(UiTheme.bg(this));
+        rootBg.setStroke((int) (1 * dp), UiTheme.cardBorder(this));
+        root.setBackground(rootBg);
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(0, 0, 0, (int) (10 * dp));
+        TextView title = new TextView(this);
+        title.setText("播放倍速");
+        title.setTextSize(18);
+        title.setTextColor(UiTheme.text(this));
+        title.setTypeface(null, Typeface.BOLD);
+        header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView closeBtn = UiTheme.makePillButton(this, "关闭", false);
+        closeBtn.setOnClickListener(v -> dialog.dismiss());
+        header.addView(closeBtn);
+        root.addView(header);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setClipToPadding(false);
+        scroll.setClipChildren(false);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setClipToPadding(false);
+        list.setClipChildren(false);
+        list.setPadding((int) (4 * dp), (int) (4 * dp), (int) (4 * dp), (int) (4 * dp));
+
+        View initialFocus = null;
+        for (float sp : SPEEDS) {
+            boolean active = Math.abs(playbackSpeed - sp) < 0.01f;
+            LinearLayout row = UiTheme.makeCard(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            rowLp.bottomMargin = (int) (8 * dp);
+
+            TextView labelTv = new TextView(this);
+            labelTv.setText(sp + "x");
+            labelTv.setTextSize(15);
+            labelTv.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
+            labelTv.setTextColor(active ? UiTheme.accent(this) : UiTheme.text(this));
+            row.addView(labelTv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            if (active) {
+                TextView checkTv = new TextView(this);
+                checkTv.setText("当前");
+                checkTv.setTextSize(12);
+                checkTv.setTypeface(null, Typeface.BOLD);
+                checkTv.setTextColor(UiTheme.accent(this));
+                row.addView(checkTv);
+            }
+
+            TvHelper.applyListRowFocus(row);
+            row.setOnClickListener(v -> {
+                playbackSpeed = sp;
+                if (player != null)
+                    player.setPlaybackParameters(new PlaybackParameters(playbackSpeed));
+                renderDetailUi();
+                dialog.dismiss();
+            });
+            list.addView(row, rowLp);
+            if (active)
+                initialFocus = row;
+        }
+        scroll.addView(list);
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        int maxH = Math.min((int) (320 * dp), (int) (dm.heightPixels * 0.55f));
+        root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, maxH));
+
+        dialog.setContentView(root);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            int w = Math.min((int) (dm.widthPixels * 0.88f), (int) (380 * dp));
+            dialog.getWindow().setLayout(w, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+        dialog.show();
+        if (initialFocus != null)
+            initialFocus.requestFocus();
+        else if (list.getChildCount() > 0)
+            list.getChildAt(0).requestFocus();
     }
 
     private final Runnable hideControlsTask = () -> {

@@ -39,6 +39,9 @@ public class CastDialog {
     private TextView statusTv;
     private SeekBar remoteSeek;
     private TextView remoteTimeTv;
+    private TextView rescanBtn;
+    private TextView pauseBtn;
+    private Runnable pendingSeekTask;
     private boolean dragging = false;
     private double lastPosSec = 0;
 
@@ -47,6 +50,8 @@ public class CastDialog {
         this.host = host;
         this.dialog = new Dialog(ctx);
         this.dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        this.dialog.setCancelable(true);
+        this.dialog.setCanceledOnTouchOutside(true);
         buildUi();
     }
 
@@ -106,21 +111,28 @@ public class CastDialog {
         spLp.rightMargin = (int) (8 * dp);
         scanRow.addView(scanProgress, spLp);
 
-        TextView rescanBtn = UiTheme.makePillButton(ctx, "重新扫描", false);
+        rescanBtn = UiTheme.makePillButton(ctx, "重新扫描", false);
         rescanBtn.setOnClickListener(v -> scan());
         scanRow.addView(rescanBtn);
         root.addView(scanRow);
 
+        android.util.DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
         ScrollView scroll = new ScrollView(ctx);
+        scroll.setClipToPadding(false);
+        scroll.setClipChildren(false);
         deviceListBox = new LinearLayout(ctx);
         deviceListBox.setOrientation(LinearLayout.VERTICAL);
+        deviceListBox.setClipToPadding(false);
+        deviceListBox.setClipChildren(false);
+        deviceListBox.setPadding((int) (4 * dp), (int) (4 * dp), (int) (4 * dp), (int) (4 * dp));
         scroll.addView(deviceListBox);
-        root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (240 * dp)));
+        int listH = Math.min((int) (240 * dp), (int) (dm.heightPixels * 0.38f));
+        root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, listH));
 
         dialog.setContentView(root);
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-            int w = (int) (ctx.getResources().getDisplayMetrics().widthPixels * 0.92f);
+            int w = Math.min((int) (dm.widthPixels * 0.92f), (int) (540 * dp));
             dialog.getWindow().setLayout(w, ViewGroup.LayoutParams.WRAP_CONTENT);
         }
         dialog.setOnDismissListener(d -> handler.removeCallbacksAndMessages(null));
@@ -129,6 +141,11 @@ public class CastDialog {
     public void show() {
         renderRemoteCard();
         dialog.show();
+        if (pauseBtn != null && remoteCard.getVisibility() == View.VISIBLE) {
+            pauseBtn.requestFocus();
+        } else if (rescanBtn != null) {
+            rescanBtn.requestFocus();
+        }
         scan();
         startStatusPolling();
     }
@@ -144,6 +161,7 @@ public class CastDialog {
         Models.CastSource src = host.getActiveSource();
         if (dev == null || src == null) {
             remoteCard.setVisibility(View.GONE);
+            pauseBtn = null;
             return;
         }
         remoteCard.setVisibility(View.VISIBLE);
@@ -179,16 +197,28 @@ public class CastDialog {
         remoteSeek = new SeekBar(ctx);
         remoteSeek.getProgressDrawable().setTint(UiTheme.accent(ctx));
         remoteSeek.getThumb().setTint(UiTheme.accent(ctx));
+        TvHelper.applySeekBarFocus(remoteSeek);
         remoteSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
-                if (fromUser) remoteTimeTv.setText(fmt(progress) + " / " + fmt(sb.getMax()));
+                if (fromUser) {
+                    remoteTimeTv.setText(fmt(progress) + " / " + fmt(sb.getMax()));
+                    if (!dragging) {
+                        // 遥控器左右键触发时防抖发送 seek
+                        if (pendingSeekTask != null) handler.removeCallbacks(pendingSeekTask);
+                        pendingSeekTask = () -> new Thread(() -> {
+                            try { DlnaClient.seek(dev, progress); } catch (Exception ignored) {}
+                        }).start();
+                        handler.postDelayed(pendingSeekTask, 350);
+                    }
+                }
             }
             @Override
             public void onStartTrackingTouch(SeekBar sb) { dragging = true; }
             @Override
             public void onStopTrackingTouch(SeekBar sb) {
                 dragging = false;
+                if (pendingSeekTask != null) handler.removeCallbacks(pendingSeekTask);
                 int target = sb.getProgress();
                 new Thread(() -> { try { DlnaClient.seek(dev, target); } catch (Exception ignored) {} }).start();
             }
@@ -203,14 +233,17 @@ public class CastDialog {
 
         TextView playBtn = UiTheme.makePillButton(ctx, "播放", false);
         playBtn.setOnClickListener(v -> new Thread(() -> { try { DlnaClient.play(dev); } catch (Exception ignored) {} }).start());
-        TextView pauseBtn = UiTheme.makePillButton(ctx, "暂停", false);
+        pauseBtn = UiTheme.makePillButton(ctx, "暂停", false);
         pauseBtn.setOnClickListener(v -> new Thread(() -> { try { DlnaClient.pause(dev); } catch (Exception ignored) {} }).start());
         TextView rwBtn = UiTheme.makePillButton(ctx, "-15s", false);
         rwBtn.setOnClickListener(v -> new Thread(() -> { try { DlnaClient.seek(dev, Math.max(0, lastPosSec - 15)); } catch (Exception ignored) {} }).start());
         TextView ffBtn = UiTheme.makePillButton(ctx, "+15s", false);
         ffBtn.setOnClickListener(v -> new Thread(() -> { try { DlnaClient.seek(dev, lastPosSec + 15); } catch (Exception ignored) {} }).start());
         TextView stopBtn = UiTheme.makePillButton(ctx, "退出", true);
-        stopBtn.setOnClickListener(v -> host.stopCast(() -> handler.post(this::renderRemoteCard)));
+        stopBtn.setOnClickListener(v -> host.stopCast(() -> handler.post(() -> {
+            renderRemoteCard();
+            if (rescanBtn != null) rescanBtn.requestFocus();
+        })));
 
         ctrlRow.addView(playBtn, pLp);
         ctrlRow.addView(pauseBtn, pLp);
@@ -265,13 +298,14 @@ public class CastDialog {
                 row.addView(subTv);
             }
 
-            TvHelper.applyChipFocus(row);
+            TvHelper.applyListRowFocus(row);
             row.setOnClickListener(v -> {
                 scanProgress.setVisibility(View.VISIBLE);
                 errorTv.setVisibility(View.GONE);
                 host.castToDevice(dev, () -> handler.post(() -> {
                     scanProgress.setVisibility(View.GONE);
                     renderRemoteCard();
+                    if (pauseBtn != null) pauseBtn.requestFocus();
                 }), err -> handler.post(() -> {
                     scanProgress.setVisibility(View.GONE);
                     errorTv.setText("投屏失败：" + err);
@@ -279,6 +313,9 @@ public class CastDialog {
                 }));
             });
             deviceListBox.addView(row, lp);
+        }
+        if (remoteCard.getVisibility() != View.VISIBLE && deviceListBox.getChildCount() > 0) {
+            deviceListBox.getChildAt(0).requestFocus();
         }
     }
 

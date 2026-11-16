@@ -67,4 +67,45 @@ public final class TvHelper {
             }
         });
     }
+
+    public static void applyListRowFocus(View row) {
+        row.setFocusable(true);
+        row.setOnFocusChangeListener((v, hasFocus) -> {
+            v.animate()
+                .scaleX(hasFocus ? 1.02f : 1.0f)
+                .scaleY(hasFocus ? 1.02f : 1.0f)
+                .setDuration(100)
+                .start();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (hasFocus) {
+                    float dp = v.getResources().getDisplayMetrics().density;
+                    GradientDrawable ring = new GradientDrawable();
+                    ring.setColor(0x1AFFB454);
+                    ring.setCornerRadius(12 * dp);
+                    ring.setStroke((int) (2.5f * dp), 0xFFFFB454);
+                    v.setForeground(ring);
+                } else {
+                    v.setForeground(null);
+                }
+            }
+        });
+    }
+
+    public static void applySeekBarFocus(View seekBar) {
+        seekBar.setFocusable(true);
+        seekBar.setOnFocusChangeListener((v, hasFocus) -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (hasFocus) {
+                    float dp = v.getResources().getDisplayMetrics().density;
+                    GradientDrawable ring = new GradientDrawable();
+                    ring.setColor(0x22FFB454);
+                    ring.setCornerRadius(8 * dp);
+                    ring.setStroke((int) (2 * dp), 0xFFFFB454);
+                    v.setForeground(ring);
+                } else {
+                    v.setForeground(null);
+                }
+            }
+        });
+    }
 }

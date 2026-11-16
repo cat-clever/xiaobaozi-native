@@ -1,0 +1,37 @@
+name: BaoziVideo
+options:
+  bundleIdPrefix: com.xiaobaozi
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "16.0"
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    PRODUCT_BUNDLE_IDENTIFIER: com.xiaobaozi.video.ios
+    INFOPLIST_FILE: BaoziVideo/Info.plist
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    TARGETED_DEVICE_FAMILY: "1,2"
+    SUPPORTS_MACCATALYST: NO
+targets:
+  BaoziVideo:
+    type: application
+    platform: iOS
+    sources:
+      - path: BaoziVideo
+        excludes:
+          - Info.plist
+    resources:
+      - path: BaoziVideo/Images.xcassets
+      - path: BaoziVideo/LaunchScreen.storyboard
+      - path: BaoziVideo/PrivacyInfo.xcprivacy
+    settings:
+      base:
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+schemes:
+  BaoziVideo:
+    build:
+      targets:
+        BaoziVideo: all

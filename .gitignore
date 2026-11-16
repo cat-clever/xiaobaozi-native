@@ -1,0 +1,15 @@
+.DS_Store
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+xcuserdata/
+DerivedData/
+ios/build/
+ios/Payload/
+ios/BaoziVideo.xcodeproj/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+dist/
+source/
+RELEASE_NOTES.md

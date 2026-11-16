@@ -106,7 +106,9 @@ public final class UpdaterService {
             throw new Exception("请先允许「安装未知应用」后重试");
         }
 
-        File outFile = new File(context.getExternalCacheDir(), "update.apk");
+        File updaterDir = new File(context.getCacheDir(), "updater");
+        if (!updaterDir.exists()) updaterDir.mkdirs();
+        File outFile = new File(updaterDir, "update.apk");
         HttpURLConnection conn = (HttpURLConnection) new URL(urlString).openConnection();
         conn.setConnectTimeout(15000);
         conn.setReadTimeout(60000);

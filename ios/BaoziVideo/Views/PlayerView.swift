@@ -17,7 +17,8 @@ struct PlayerView: View {
   @State private var s2SegmentIndex: Int = 0
 
   @State private var stream: ResolvedMediaStream?
-  @State private var player: AVPlayer?
+  @State private var player = AVPlayer()
+  @State private var playGeneration: Int = 0
   @State private var playbackRate: Float = 1.0
   @State private var loading = true
   @State private var error: String?
@@ -31,12 +32,10 @@ struct PlayerView: View {
       // 视频区
       ZStack {
         Color.black
-        if let player {
-          NativeVideoPlayerView(player: player)
-            .onDisappear {
-              saveProgress()
-            }
-        }
+        NativeVideoPlayerView(player: player)
+          .onDisappear {
+            saveProgress()
+          }
         if loading {
           ProgressView("正在解析播放地址…")
             .tint(.white)
@@ -135,7 +134,7 @@ struct PlayerView: View {
                 let active = abs(playbackRate - sp) < 0.01
                 Button {
                   playbackRate = sp
-                  player?.rate = sp
+                  player.rate = sp
                 } label: {
                   Text(sp == 1.0 ? "1.0x" : "\(String(format: "%g", sp))x")
                     .font(.caption.bold())
@@ -333,48 +332,79 @@ struct PlayerView: View {
   }
 
   private func playEpisode(_ ep: Episode, quality: Int?) async {
+    playGeneration += 1
+    let gen = playGeneration
     loading = true
     error = nil
     episodeIndex = ep.episodeIndex
+    player.pause()
+    player.replaceCurrentItem(with: nil)
     stream?.dispose()
     stream = nil
 
     do {
       if item.sourceId == .s1 {
         let fetchedLines = try await Source1Service.shared.playLinesFor(vodId: currentVodId, episode: ep)
+        if gen != playGeneration { return }
         lines = fetchedLines
         let picked = StreamResolver.pickPlayableLine(fetchedLines)
         selectedLine = picked
         let resolved = try await StreamResolver.resolveSource1(lines: fetchedLines, preferred: picked)
+        if gen != playGeneration {
+          resolved.dispose()
+          return
+        }
         startPlayback(resolved)
       } else {
         let cands = try await Source2Service.shared.playFor(sid: currentVodId, episode: ep, quality: quality)
+        if gen != playGeneration { return }
         s2Candidates = cands
         s2SegmentIndex = 0
         guard let first = cands.first else {
           throw AppApiError.api("没有拿到播放地址（该集可能受限或上游抖动）")
         }
         let resolved = try await StreamResolver.resolveSource2Candidate(first)
+        if gen != playGeneration {
+          resolved.dispose()
+          return
+        }
         startPlayback(resolved)
       }
     } catch {
-      self.error = error.localizedDescription
+      if gen == playGeneration {
+        self.error = error.localizedDescription
+      }
     }
-    loading = false
+    if gen == playGeneration {
+      loading = false
+    }
   }
 
   private func switchS1Line(_ line: PlayLine) async {
+    playGeneration += 1
+    let gen = playGeneration
     loading = true
     error = nil
     selectedLine = line
+    player.pause()
+    player.replaceCurrentItem(with: nil)
     stream?.dispose()
+    stream = nil
     do {
       let resolved = try await StreamResolver.resolveSource1(lines: lines, preferred: line)
+      if gen != playGeneration {
+        resolved.dispose()
+        return
+      }
       startPlayback(resolved)
     } catch {
-      self.error = error.localizedDescription
+      if gen == playGeneration {
+        self.error = error.localizedDescription
+      }
     }
-    loading = false
+    if gen == playGeneration {
+      loading = false
+    }
   }
 
   private func startPlayback(_ resolved: ResolvedMediaStream) {
@@ -387,17 +417,17 @@ struct PlayerView: View {
     try? AVAudioSession.sharedInstance().setActive(true)
     let asset = AVURLAsset(url: url)
     let playerItem = AVPlayerItem(asset: asset)
-    let p = AVPlayer(playerItem: playerItem)
-    p.allowsExternalPlayback = true
-    p.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
-    p.rate = playbackRate
-    player = p
-    p.play()
+    player.allowsExternalPlayback = true
+    player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+    player.replaceCurrentItem(with: playerItem)
+    player.play()
+    if abs(playbackRate - 1.0) > 0.01 {
+      player.rate = playbackRate
+    }
   }
 
   private func saveProgress() {
-    guard let p = player else { return }
-    let sec = CMTimeGetSeconds(p.currentTime())
+    let sec = CMTimeGetSeconds(player.currentTime())
     if sec.isFinite && sec > 0 {
       StorageManager.shared.saveWatchRecord(WatchRecord(
         id: item.id,
@@ -426,13 +456,14 @@ struct PlayerView: View {
   }
 
   private func cleanup() {
+    playGeneration += 1
     if isFullscreen {
       isFullscreen = false
       applyOrientation(landscape: false)
     }
     saveProgress()
-    player?.pause()
-    player = nil
+    player.pause()
+    player.replaceCurrentItem(with: nil)
     stream?.dispose()
     stream = nil
   }

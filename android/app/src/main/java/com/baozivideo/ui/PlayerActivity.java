@@ -65,6 +65,7 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView errorTv;
     private float playbackSpeed = 1.0f;
     private boolean isFullscreen = false;
+    private int playGeneration = 0;
 
     private static final float[] SPEEDS = {0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f};
 
@@ -217,9 +218,14 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void playEpisode(Models.Episode ep, Integer quality) {
+        final int gen = ++playGeneration;
         episodeIndex = ep.episodeIndex;
         loadingBar.setVisibility(View.VISIBLE);
         errorTv.setVisibility(View.GONE);
+        if (player != null) {
+            player.stop();
+            player.clearMediaItems();
+        }
         if (currentStream != null && currentStream.dispose != null) {
             currentStream.dispose.run();
             currentStream = null;
@@ -237,19 +243,33 @@ public class PlayerActivity extends AppCompatActivity {
                     if (s2Candidates.isEmpty()) throw new Exception("没有拿到播放地址");
                     resolved = StreamResolver.resolveSource2Candidate(s2Candidates.get(0));
                 }
-                runOnUiThread(() -> startPlayback(resolved));
+                if (gen != playGeneration) {
+                    if (resolved.dispose != null) resolved.dispose.run();
+                    return;
+                }
+                runOnUiThread(() -> {
+                    if (gen == playGeneration) startPlayback(resolved);
+                    else if (resolved.dispose != null) resolved.dispose.run();
+                });
             } catch (Exception e) {
                 runOnUiThread(() -> {
-                    loadingBar.setVisibility(View.GONE);
-                    showError(e.getMessage());
+                    if (gen == playGeneration) {
+                        loadingBar.setVisibility(View.GONE);
+                        showError(e.getMessage());
+                    }
                 });
             }
         }).start();
     }
 
     private void switchS1Line(Models.PlayLine line) {
+        final int gen = ++playGeneration;
         selectedLine = line;
         loadingBar.setVisibility(View.VISIBLE);
+        if (player != null) {
+            player.stop();
+            player.clearMediaItems();
+        }
         if (currentStream != null && currentStream.dispose != null) {
             currentStream.dispose.run();
             currentStream = null;
@@ -257,11 +277,20 @@ public class PlayerActivity extends AppCompatActivity {
         new Thread(() -> {
             try {
                 Models.ResolvedMediaStream resolved = StreamResolver.resolveSource1(lines, line);
-                runOnUiThread(() -> startPlayback(resolved));
+                if (gen != playGeneration) {
+                    if (resolved.dispose != null) resolved.dispose.run();
+                    return;
+                }
+                runOnUiThread(() -> {
+                    if (gen == playGeneration) startPlayback(resolved);
+                    else if (resolved.dispose != null) resolved.dispose.run();
+                });
             } catch (Exception e) {
                 runOnUiThread(() -> {
-                    loadingBar.setVisibility(View.GONE);
-                    showError(e.getMessage());
+                    if (gen == playGeneration) {
+                        loadingBar.setVisibility(View.GONE);
+                        showError(e.getMessage());
+                    }
                 });
             }
         }).start();

@@ -27,13 +27,41 @@ public class MediaCardAdapter extends RecyclerView.Adapter<MediaCardAdapter.VH> 
         void onClick(Models.VodItem item);
     }
 
+    private static final int TYPE_CARD = 0;
+    private static final int TYPE_FOOTER = 1;
+
     private final List<Models.VodItem> items = new ArrayList<>();
     private final int cardWidthPx;
     private final OnItemClick listener;
+    private Runnable onLoadMore;
+    private String footerText = "";
+    private boolean footerEnabled = false;
 
     public MediaCardAdapter(int cardWidthPx, OnItemClick listener) {
         this.cardWidthPx = cardWidthPx;
         this.listener = listener;
+    }
+
+    public void enableLoadMoreFooter(Runnable onLoadMore) {
+        this.onLoadMore = onLoadMore;
+    }
+
+    public void setFooterState(String text, boolean enabled) {
+        this.footerText = text == null ? "" : text;
+        this.footerEnabled = enabled;
+        if (hasFooter()) notifyItemChanged(items.size());
+    }
+
+    public boolean isFooterPosition(int position) {
+        return hasFooter() && position == items.size();
+    }
+
+    private boolean hasFooter() {
+        return onLoadMore != null && !items.isEmpty();
+    }
+
+    public int getMediaCount() {
+        return items.size();
     }
 
     public void setItems(List<Models.VodItem> list) {
@@ -49,11 +77,40 @@ public class MediaCardAdapter extends RecyclerView.Adapter<MediaCardAdapter.VH> 
         notifyItemRangeInserted(start, list.size());
     }
 
+    @Override
+    public int getItemViewType(int position) {
+        return isFooterPosition(position) ? TYPE_FOOTER : TYPE_CARD;
+    }
+
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         Context ctx = parent.getContext();
         float dp = ctx.getResources().getDisplayMetrics().density;
+
+        if (viewType == TYPE_FOOTER) {
+            FrameLayout wrap = new FrameLayout(ctx);
+            RecyclerView.LayoutParams wrapLp = new RecyclerView.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            wrapLp.setMargins((int) (6 * dp), (int) (10 * dp), (int) (6 * dp), (int) (16 * dp));
+            wrap.setLayoutParams(wrapLp);
+
+            TextView btn = new TextView(ctx);
+            btn.setGravity(Gravity.CENTER);
+            btn.setTextSize(14);
+            btn.setTypeface(null, android.graphics.Typeface.BOLD);
+            btn.setPadding((int) (16 * dp), (int) (12 * dp), (int) (16 * dp), (int) (12 * dp));
+            GradientDrawable fBg = new GradientDrawable();
+            fBg.setCornerRadius(12 * dp);
+            fBg.setColor(UiTheme.cardBg(ctx));
+            fBg.setStroke((int) (1 * dp), UiTheme.cardBorder(ctx));
+            btn.setBackground(fBg);
+            btn.setTextColor(UiTheme.text(ctx));
+            TvHelper.applyListRowFocus(btn);
+            wrap.addView(btn, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            return new VH(wrap, btn);
+        }
 
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -124,6 +181,17 @@ public class MediaCardAdapter extends RecyclerView.Adapter<MediaCardAdapter.VH> 
 
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
+        if (isFooterPosition(position)) {
+            if (h.footerBtn != null) {
+                h.footerBtn.setText(footerText);
+                h.footerBtn.setAlpha(footerEnabled ? 1.0f : 0.6f);
+                h.footerBtn.setClickable(footerEnabled);
+                h.footerBtn.setOnClickListener(v -> {
+                    if (footerEnabled && onLoadMore != null) onLoadMore.run();
+                });
+            }
+            return;
+        }
         Models.VodItem item = items.get(position);
         h.title.setText(item.title);
 
@@ -168,12 +236,13 @@ public class MediaCardAdapter extends RecyclerView.Adapter<MediaCardAdapter.VH> 
 
     @Override
     public int getItemCount() {
-        return items.size();
+        return items.size() + (hasFooter() ? 1 : 0);
     }
 
     static class VH extends RecyclerView.ViewHolder {
         final ImageView image;
         final TextView badge, rating, remarks, title;
+        final TextView footerBtn;
         VH(View itemView, ImageView image, TextView badge, TextView rating, TextView remarks, TextView title) {
             super(itemView);
             this.image = image;
@@ -181,6 +250,16 @@ public class MediaCardAdapter extends RecyclerView.Adapter<MediaCardAdapter.VH> 
             this.rating = rating;
             this.remarks = remarks;
             this.title = title;
+            this.footerBtn = null;
+        }
+        VH(View itemView, TextView footerBtn) {
+            super(itemView);
+            this.image = null;
+            this.badge = null;
+            this.rating = null;
+            this.remarks = null;
+            this.title = null;
+            this.footerBtn = footerBtn;
         }
     }
 }

@@ -10,6 +10,8 @@ import android.os.Build;
 import android.view.View;
 
 public final class TvHelper {
+    public static final int GOLD = 0xFFFFB454;
+
     private TvHelper() {}
 
     public static boolean isTv(Context context) {
@@ -22,6 +24,21 @@ public final class TvHelper {
         return pm != null && pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
     }
 
+    /** 设置或清除视图前景上的金色焦点边框 */
+    public static void setGoldBorder(View target, boolean hasFocus, float cornerRadiusDp, float strokeDp, int fillColor) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || target == null) return;
+        if (hasFocus) {
+            float dp = target.getResources().getDisplayMetrics().density;
+            GradientDrawable ring = new GradientDrawable();
+            ring.setColor(fillColor);
+            ring.setCornerRadius(cornerRadiusDp * dp);
+            ring.setStroke(Math.max(1, (int) (strokeDp * dp)), GOLD);
+            target.setForeground(ring);
+        } else {
+            target.setForeground(null);
+        }
+    }
+
     public static void applyCardFocus(View cardView, View borderTarget) {
         cardView.setFocusable(true);
         cardView.setOnFocusChangeListener((v, hasFocus) -> {
@@ -30,82 +47,45 @@ public final class TvHelper {
                 .scaleY(hasFocus ? 1.06f : 1.0f)
                 .setDuration(120)
                 .start();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && borderTarget != null) {
-                if (hasFocus) {
-                    float dp = v.getResources().getDisplayMetrics().density;
-                    GradientDrawable ring = new GradientDrawable();
-                    ring.setColor(Color.TRANSPARENT);
-                    ring.setCornerRadius(12 * dp);
-                    ring.setStroke((int) (3 * dp), 0xFFFFB454);
-                    borderTarget.setForeground(ring);
-                } else {
-                    borderTarget.setForeground(null);
-                }
-            }
+            setGoldBorder(borderTarget, hasFocus, 12f, 3f, Color.TRANSPARENT);
         });
     }
 
     public static void applyChipFocus(View chip) {
         chip.setFocusable(true);
+        chip.setClickable(true);
         chip.setOnFocusChangeListener((v, hasFocus) -> {
             v.animate()
-                .scaleX(hasFocus ? 1.08f : 1.0f)
-                .scaleY(hasFocus ? 1.08f : 1.0f)
+                .scaleX(hasFocus ? 1.06f : 1.0f)
+                .scaleY(hasFocus ? 1.06f : 1.0f)
                 .setDuration(100)
                 .start();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (hasFocus) {
-                    float dp = v.getResources().getDisplayMetrics().density;
-                    GradientDrawable ring = new GradientDrawable();
-                    ring.setColor(Color.TRANSPARENT);
-                    ring.setCornerRadius(14 * dp);
-                    ring.setStroke((int) (2 * dp), 0xFFFFFFFF);
-                    v.setForeground(ring);
-                } else {
-                    v.setForeground(null);
-                }
-            }
+            setGoldBorder(v, hasFocus, 16f, 2.5f, 0x18FFB454);
         });
     }
 
     public static void applyListRowFocus(View row) {
         row.setFocusable(true);
+        row.setClickable(true);
         row.setOnFocusChangeListener((v, hasFocus) -> {
             v.animate()
                 .scaleX(hasFocus ? 1.02f : 1.0f)
                 .scaleY(hasFocus ? 1.02f : 1.0f)
                 .setDuration(100)
                 .start();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (hasFocus) {
-                    float dp = v.getResources().getDisplayMetrics().density;
-                    GradientDrawable ring = new GradientDrawable();
-                    ring.setColor(0x1AFFB454);
-                    ring.setCornerRadius(12 * dp);
-                    ring.setStroke((int) (2.5f * dp), 0xFFFFB454);
-                    v.setForeground(ring);
-                } else {
-                    v.setForeground(null);
-                }
-            }
+            setGoldBorder(v, hasFocus, 12f, 2.5f, 0x1AFFB454);
         });
     }
 
     public static void applySeekBarFocus(View seekBar) {
         seekBar.setFocusable(true);
-        seekBar.setOnFocusChangeListener((v, hasFocus) -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (hasFocus) {
-                    float dp = v.getResources().getDisplayMetrics().density;
-                    GradientDrawable ring = new GradientDrawable();
-                    ring.setColor(0x22FFB454);
-                    ring.setCornerRadius(8 * dp);
-                    ring.setStroke((int) (2 * dp), 0xFFFFB454);
-                    v.setForeground(ring);
-                } else {
-                    v.setForeground(null);
-                }
-            }
-        });
+        seekBar.setOnFocusChangeListener((v, hasFocus) ->
+                setGoldBorder(v, hasFocus, 8f, 2.5f, 0x22FFB454));
+    }
+
+    public static void applyFocusRing(View view, float cornerRadiusDp) {
+        view.setFocusable(true);
+        view.setOnFocusChangeListener((v, hasFocus) ->
+                setGoldBorder(v, hasFocus, cornerRadiusDp, 2.5f, 0x18FFB454));
     }
 }

@@ -58,6 +58,8 @@ public class SearchFragment extends Fragment {
         input.setTextSize(14);
         input.setSingleLine(true);
         input.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
+        input.setOnFocusChangeListener((v, hasFocus) ->
+                TvHelper.setGoldBorder(bar, hasFocus, 16f, 2.5f, 0x10FFB454));
         input.setOnEditorActionListener((v, actionId, event) -> {
             runSearch(input.getText().toString());
             return true;
@@ -127,7 +129,12 @@ public class SearchFragment extends Fragment {
 
         HorizontalScrollView hsv = new HorizontalScrollView(ctx);
         hsv.setHorizontalScrollBarEnabled(false);
+        hsv.setClipChildren(false);
+        hsv.setClipToPadding(false);
         LinearLayout row = new LinearLayout(ctx);
+        row.setClipChildren(false);
+        row.setClipToPadding(false);
+        row.setPadding((int) (2 * dp), (int) (3 * dp), (int) (2 * dp), (int) (3 * dp));
         for (String kw : list) {
             TextView chip = new TextView(ctx);
             chip.setText(kw);

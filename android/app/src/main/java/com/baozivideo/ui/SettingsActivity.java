@@ -66,7 +66,9 @@ public class SettingsActivity extends AppCompatActivity {
             RadioButton rb = new RadioButton(this);
             rb.setText(m[1]);
             rb.setTextColor(UiTheme.text(this));
+            rb.setPadding((int) (8 * dp), (int) (6 * dp), (int) (12 * dp), (int) (6 * dp));
             rb.setTag(m[0]);
+            TvHelper.applyFocusRing(rb, 10f);
             rg.addView(rb);
             if (m[0].equals(curMode)) rb.setChecked(true);
         }

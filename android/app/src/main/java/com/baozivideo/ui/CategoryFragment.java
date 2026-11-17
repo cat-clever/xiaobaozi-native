@@ -37,12 +37,14 @@ public class CategoryFragment extends Fragment {
     private String s2Year = "", s2Sort = "";
 
     private LinearLayout filtersBox;
+    private RecyclerView rv;
     private MediaCardAdapter adapter;
     private ProgressBar progress;
     private TextView errorTv;
     private int page = 1;
     private boolean loading = false;
     private boolean reachedEnd = false;
+    private String restoreFocusKey = null;
 
     @Nullable
     @Override
@@ -57,10 +59,14 @@ public class CategoryFragment extends Fragment {
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(UiTheme.bg(ctx));
+        root.setClipChildren(false);
+        root.setClipToPadding(false);
         root.setPadding((int) (14 * dp), (int) (10 * dp), (int) (14 * dp), 0);
 
         LinearLayout srcRow = new LinearLayout(ctx);
-        srcRow.setPadding(0, 0, 0, (int) (8 * dp));
+        srcRow.setClipChildren(false);
+        srcRow.setClipToPadding(false);
+        srcRow.setPadding((int) (2 * dp), (int) (2 * dp), (int) (2 * dp), (int) (8 * dp));
         TextView b1 = UiTheme.makePillButton(ctx, "全网源", true);
         TextView b2 = UiTheme.makePillButton(ctx, "精选源", false);
         LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
@@ -71,14 +77,14 @@ public class CategoryFragment extends Fragment {
             UiTheme.stylePill(b1, true);
             UiTheme.stylePill(b2, false);
             renderFilters();
-            fetchPage(1);
+            fetchPage(1, false);
         });
         b2.setOnClickListener(v -> {
             source = Models.SourceId.s2;
             UiTheme.stylePill(b1, false);
             UiTheme.stylePill(b2, true);
             renderFilters();
-            fetchPage(1);
+            fetchPage(1, false);
         });
         srcRow.addView(b1, bLp);
         srcRow.addView(b2, b2Lp);
@@ -86,6 +92,8 @@ public class CategoryFragment extends Fragment {
 
         filtersBox = new LinearLayout(ctx);
         filtersBox.setOrientation(LinearLayout.VERTICAL);
+        filtersBox.setClipChildren(false);
+        filtersBox.setClipToPadding(false);
         root.addView(filtersBox);
 
         errorTv = new TextView(ctx);
@@ -97,23 +105,28 @@ public class CategoryFragment extends Fragment {
         progress.setVisibility(View.GONE);
         root.addView(progress);
 
-        RecyclerView rv = new RecyclerView(ctx);
+        rv = new RecyclerView(ctx);
+        rv.setClipChildren(false);
+        rv.setClipToPadding(false);
         GridLayoutManager gm = new GridLayoutManager(ctx, cols);
-        rv.setLayoutManager(gm);
         adapter = new MediaCardAdapter(cardW, item -> {
             Intent it = new Intent(ctx, PlayerActivity.class);
             it.putExtra("item", item);
             startActivity(it);
         });
-        rv.setAdapter(adapter);
-        rv.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                if (!loading && !reachedEnd && gm.findLastVisibleItemPosition() >= adapter.getItemCount() - 4) {
-                    fetchPage(page + 1);
-                }
+        adapter.enableLoadMoreFooter(() -> {
+            if (!loading && !reachedEnd) {
+                fetchPage(page + 1, true);
             }
         });
+        gm.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override
+            public int getSpanSize(int position) {
+                return adapter.isFooterPosition(position) ? cols : 1;
+            }
+        });
+        rv.setLayoutManager(gm);
+        rv.setAdapter(adapter);
         root.addView(rv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         loadTreesAndFirstPage();
@@ -137,7 +150,7 @@ public class CategoryFragment extends Fragment {
             if (isAdded()) {
                 requireActivity().runOnUiThread(() -> {
                     renderFilters();
-                    fetchPage(1);
+                    fetchPage(1, false);
                 });
             }
         }).start();
@@ -149,17 +162,19 @@ public class CategoryFragment extends Fragment {
         filtersBox.removeAllViews();
         if (source == Models.SourceId.s1 && tree1 != null) {
             addChipRow("频道", tree1.categories, String.valueOf(s1TypeId), val -> {
+                restoreFocusKey = "频道:" + val;
                 s1TypeId = Integer.parseInt(val);
                 s1Genre = "";
                 s1Tag = "";
                 renderFilters();
-                fetchPage(1);
+                fetchPage(1, false);
             });
             for (Models.FilterRow r : Source1Service.filterRowsFor(tree1, s1TypeId, s1Genre)) {
                 String sel = "题材".equals(r.title) ? s1Genre
                         : ("标签".equals(r.title) ? s1Tag
                                 : ("地区".equals(r.title) ? s1Area : ("年份".equals(r.title) ? s1Year : s1Sort)));
                 addChipRow(r.title, r.options, sel, val -> {
+                    restoreFocusKey = r.title + ":" + val;
                     if ("题材".equals(r.title)) {
                         s1Genre = val;
                         s1Tag = "";
@@ -172,7 +187,7 @@ public class CategoryFragment extends Fragment {
                     else
                         s1Sort = val;
                     renderFilters();
-                    fetchPage(1);
+                    fetchPage(1, false);
                 });
             }
         } else if (source == Models.SourceId.s2 && tree2 != null) {
@@ -181,34 +196,39 @@ public class CategoryFragment extends Fragment {
                 grpOpts.add(new Models.FilterOption(g.label, String.valueOf(g.value)));
             }
             addChipRow("分组", grpOpts, s2Stype == null ? "" : String.valueOf(s2Stype), val -> {
+                restoreFocusKey = "分组:" + val;
                 s2Stype = Integer.parseInt(val);
                 s2Cid = null;
                 renderFilters();
-                fetchPage(1);
+                fetchPage(1, false);
             });
             for (Source2Client.CateResult.Group g : tree2.groups) {
                 if (s2Stype != null && g.value == s2Stype) {
                     addChipRow("分类", g.cates, s2Cid == null ? "" : String.valueOf(s2Cid), val -> {
+                        restoreFocusKey = "分类:" + val;
                         s2Cid = Integer.parseInt(val);
                         renderFilters();
-                        fetchPage(1);
+                        fetchPage(1, false);
                     });
                     break;
                 }
             }
             if (!tree2.years.isEmpty())
                 addChipRow("年份", tree2.years, s2Year, val -> {
+                    restoreFocusKey = "年份:" + val;
                     s2Year = val;
                     renderFilters();
-                    fetchPage(1);
+                    fetchPage(1, false);
                 });
             if (!tree2.sorts.isEmpty())
                 addChipRow("排序", tree2.sorts, s2Sort, val -> {
+                    restoreFocusKey = "排序:" + val;
                     s2Sort = val;
                     renderFilters();
-                    fetchPage(1);
+                    fetchPage(1, false);
                 });
         }
+        restoreFocusKey = null;
     }
 
     private interface ChipSelect {
@@ -220,9 +240,13 @@ public class CategoryFragment extends Fragment {
         float dp = ctx.getResources().getDisplayMetrics().density;
         HorizontalScrollView hsv = new HorizontalScrollView(ctx);
         hsv.setHorizontalScrollBarEnabled(false);
+        hsv.setClipChildren(false);
+        hsv.setClipToPadding(false);
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(0, (int) (4 * dp), 0, (int) (4 * dp));
+        row.setClipChildren(false);
+        row.setClipToPadding(false);
+        row.setPadding((int) (2 * dp), (int) (4 * dp), (int) (2 * dp), (int) (4 * dp));
 
         TextView title = new TextView(ctx);
         title.setText(label + " ");
@@ -243,17 +267,22 @@ public class CategoryFragment extends Fragment {
             chip.setOnClickListener(v -> cb.onSelect(opt.value));
             TvHelper.applyChipFocus(chip);
             row.addView(chip, lp);
+            if ((label + ":" + opt.value).equals(restoreFocusKey)) {
+                chip.post(chip::requestFocus);
+            }
         }
         hsv.addView(row);
         filtersBox.addView(hsv);
     }
 
-    private void fetchPage(int targetPage) {
+    private void fetchPage(int targetPage, boolean fromFooter) {
         loading = true;
         page = targetPage;
         if (targetPage == 1) {
             reachedEnd = false;
             progress.setVisibility(View.VISIBLE);
+        } else {
+            adapter.setFooterState("正在加载第 " + targetPage + " 页…", false);
         }
         errorTv.setVisibility(View.GONE);
 
@@ -280,12 +309,25 @@ public class CategoryFragment extends Fragment {
                     requireActivity().runOnUiThread(() -> {
                         progress.setVisibility(View.GONE);
                         loading = false;
-                        if (targetPage == 1)
+                        int oldCount = adapter.getMediaCount();
+                        if (targetPage == 1) {
                             adapter.setItems(list);
-                        else
+                            if (rv != null) rv.scrollToPosition(0);
+                        } else {
                             adapter.appendItems(list);
-                        if (list.isEmpty())
+                        }
+                        if (list.isEmpty()) {
                             reachedEnd = true;
+                            adapter.setFooterState("已显示全部", false);
+                        } else {
+                            adapter.setFooterState("加载下一页（当前第 " + targetPage + " 页）", true);
+                            if (fromFooter && rv != null) {
+                                rv.post(() -> {
+                                    RecyclerView.ViewHolder vh = rv.findViewHolderForAdapterPosition(oldCount);
+                                    if (vh != null) vh.itemView.requestFocus();
+                                });
+                            }
+                        }
                     });
                 }
             } catch (Exception e) {
@@ -295,6 +337,9 @@ public class CategoryFragment extends Fragment {
                         loading = false;
                         errorTv.setText(e.getMessage());
                         errorTv.setVisibility(View.VISIBLE);
+                        if (targetPage > 1) {
+                            adapter.setFooterState("加载失败，点击重试第 " + targetPage + " 页", true);
+                        }
                     });
                 }
             }

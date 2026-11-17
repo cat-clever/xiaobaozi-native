@@ -82,6 +82,10 @@ public class PlayerActivity extends AppCompatActivity {
     private LinearLayout root;
     private FrameLayout videoBox;
     private FrameLayout controlsOverlay;
+    private ImageView backBtn;
+    private ImageView castBtn;
+    private ImageView pipBtn;
+    private ImageView gearBtn;
     private ImageView playPauseBtn;
     private ImageView fsBtn;
     private TextView curTimeTv;
@@ -89,6 +93,7 @@ public class PlayerActivity extends AppCompatActivity {
     private SeekBar seekBar;
     private boolean isDraggingSeek = false;
     private boolean controlsVisible = true;
+    private boolean suppressAutoShowOnFocus = false;
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private ScrollView detailScroll;
     private ProgressBar loadingBar;
@@ -164,6 +169,11 @@ public class PlayerActivity extends AppCompatActivity {
         playerView.setPlayer(player);
         playerView.setUseController(false);
         playerView.setFocusable(true);
+        playerView.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus && !controlsVisible && !suppressAutoShowOnFocus) {
+                showControllerNow(true);
+            }
+        });
         videoBox.addView(playerView,
                 new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -246,6 +256,11 @@ public class PlayerActivity extends AppCompatActivity {
                 root.setPadding(0, 0, 0, 0);
             else
                 ViewCompat.requestApplyInsets(root);
+        }
+        if (isFullscreen) {
+            showControllerNow(true);
+        } else if (controlsVisible && fsBtn != null) {
+            fsBtn.post(() -> fsBtn.requestFocus());
         }
     }
 
@@ -677,7 +692,8 @@ public class PlayerActivity extends AppCompatActivity {
         topBar.setBackgroundColor(0x55000000);
         topBar.setPadding((int) (8 * dp), (int) (6 * dp), (int) (8 * dp), (int) (6 * dp));
 
-        ImageView backBtn = makeIconBtn(dp, R.drawable.ic_player_back, 36);
+        backBtn = makeIconBtn(dp, R.drawable.ic_player_back, 36);
+        backBtn.setId(View.generateViewId());
         backBtn.setOnClickListener(v -> {
             if (isFullscreen)
                 toggleFullscreen(videoBox);
@@ -689,18 +705,21 @@ public class PlayerActivity extends AppCompatActivity {
         View spacer = new View(this);
         topBar.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
 
-        ImageView castBtn = makeIconBtn(dp, R.drawable.ic_player_cast, 36);
+        castBtn = makeIconBtn(dp, R.drawable.ic_player_cast, 36);
+        castBtn.setId(View.generateViewId());
         castBtn.setOnClickListener(v -> {
             showCastDialog();
             scheduleHideControls();
         });
         topBar.addView(castBtn);
 
-        ImageView pipBtn = makeIconBtn(dp, R.drawable.ic_player_pip, 36);
+        pipBtn = makeIconBtn(dp, R.drawable.ic_player_pip, 36);
+        pipBtn.setId(View.generateViewId());
         pipBtn.setOnClickListener(v -> enterPip());
         topBar.addView(pipBtn);
 
-        ImageView gearBtn = makeIconBtn(dp, R.drawable.ic_player_settings, 36);
+        gearBtn = makeIconBtn(dp, R.drawable.ic_player_settings, 36);
+        gearBtn.setId(View.generateViewId());
         gearBtn.setOnClickListener(v -> {
             showSpeedDialog();
             scheduleHideControls();
@@ -714,6 +733,7 @@ public class PlayerActivity extends AppCompatActivity {
 
         // 中央播放/暂停按钮
         playPauseBtn = makeIconBtn(dp, R.drawable.ic_player_pause, 52);
+        playPauseBtn.setId(View.generateViewId());
         GradientDrawable centerBg = new GradientDrawable();
         centerBg.setShape(GradientDrawable.OVAL);
         centerBg.setColor(0x88000000);
@@ -746,6 +766,7 @@ public class PlayerActivity extends AppCompatActivity {
         bottomBar.addView(curTimeTv);
 
         seekBar = new SeekBar(this);
+        seekBar.setId(View.generateViewId());
         seekBar.getProgressDrawable().setTint(0xFFFFB454);
         seekBar.getThumb().setTint(0xFFFFB454);
         TvHelper.applySeekBarFocus(seekBar);
@@ -786,11 +807,33 @@ public class PlayerActivity extends AppCompatActivity {
         bottomBar.addView(durTimeTv);
 
         fsBtn = makeIconBtn(dp, R.drawable.ic_player_fullscreen, 32);
+        fsBtn.setId(View.generateViewId());
         fsBtn.setOnClickListener(v -> {
             toggleFullscreen(videoBox);
             scheduleHideControls();
         });
         bottomBar.addView(fsBtn);
+
+        // 显式建立 TV 遥控器上下左右焦点链
+        backBtn.setNextFocusRightId(castBtn.getId());
+        castBtn.setNextFocusLeftId(backBtn.getId());
+        castBtn.setNextFocusRightId(pipBtn.getId());
+        pipBtn.setNextFocusLeftId(castBtn.getId());
+        pipBtn.setNextFocusRightId(gearBtn.getId());
+        gearBtn.setNextFocusLeftId(pipBtn.getId());
+
+        backBtn.setNextFocusDownId(playPauseBtn.getId());
+        castBtn.setNextFocusDownId(playPauseBtn.getId());
+        pipBtn.setNextFocusDownId(playPauseBtn.getId());
+        gearBtn.setNextFocusDownId(playPauseBtn.getId());
+
+        playPauseBtn.setNextFocusUpId(castBtn.getId());
+        playPauseBtn.setNextFocusDownId(seekBar.getId());
+
+        seekBar.setNextFocusUpId(playPauseBtn.getId());
+        seekBar.setNextFocusRightId(fsBtn.getId());
+        fsBtn.setNextFocusUpId(playPauseBtn.getId());
+        fsBtn.setNextFocusLeftId(seekBar.getId());
 
         FrameLayout.LayoutParams bottomLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -806,6 +849,8 @@ public class PlayerActivity extends AppCompatActivity {
         int pad = (int) (6 * dp);
         iv.setPadding(pad, pad, pad, pad);
         iv.setLayoutParams(new LinearLayout.LayoutParams((int) (sizeDp * dp), (int) (sizeDp * dp)));
+        iv.setClickable(true);
+        iv.setFocusable(true);
         TvHelper.applyChipFocus(iv);
         return iv;
     }
@@ -909,6 +954,11 @@ public class PlayerActivity extends AppCompatActivity {
 
     private final Runnable hideControlsTask = () -> {
         if (controlsOverlay != null && player != null && player.isPlaying()) {
+            if (controlsOverlay.hasFocus() && playerView != null) {
+                suppressAutoShowOnFocus = true;
+                playerView.requestFocus();
+                suppressAutoShowOnFocus = false;
+            }
             controlsVisible = false;
             controlsOverlay.setVisibility(View.GONE);
         }
@@ -917,18 +967,32 @@ public class PlayerActivity extends AppCompatActivity {
     private void toggleControls() {
         if (controlsOverlay == null)
             return;
-        controlsVisible = !controlsVisible;
-        controlsOverlay.setVisibility(controlsVisible ? View.VISIBLE : View.GONE);
-        if (controlsVisible)
-            scheduleHideControls();
+        if (controlsVisible) {
+            if (controlsOverlay.hasFocus() && playerView != null) {
+                suppressAutoShowOnFocus = true;
+                playerView.requestFocus();
+                suppressAutoShowOnFocus = false;
+            }
+            controlsVisible = false;
+            controlsOverlay.setVisibility(View.GONE);
+        } else {
+            showControllerNow(false);
+        }
     }
 
     private void showControllerNow() {
+        showControllerNow(false);
+    }
+
+    private void showControllerNow(boolean focusPlayPause) {
         if (controlsOverlay == null)
             return;
         controlsVisible = true;
         controlsOverlay.setVisibility(View.VISIBLE);
         scheduleHideControls();
+        if (focusPlayPause && playPauseBtn != null) {
+            playPauseBtn.post(() -> playPauseBtn.requestFocus());
+        }
     }
 
     private void scheduleHideControls() {
@@ -966,29 +1030,62 @@ public class PlayerActivity extends AppCompatActivity {
                     player.pause();
                 else
                     player.play();
-                showControllerNow();
+                showControllerNow(false);
                 return true;
             } else if (code == KeyEvent.KEYCODE_MEDIA_PLAY) {
                 player.play();
-                showControllerNow();
+                showControllerNow(false);
                 return true;
             } else if (code == KeyEvent.KEYCODE_MEDIA_PAUSE) {
                 player.pause();
-                showControllerNow();
+                showControllerNow(false);
                 return true;
-            } else if (code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
-                    || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_RIGHT && playerView.hasFocus())) {
+            } else if (code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) {
                 player.seekTo(Math.max(0, player.getCurrentPosition() + 10000));
-                showControllerNow();
+                showControllerNow(false);
                 return true;
-            } else if (code == KeyEvent.KEYCODE_MEDIA_REWIND
-                    || (isFullscreen && code == KeyEvent.KEYCODE_DPAD_LEFT && playerView.hasFocus())) {
+            } else if (code == KeyEvent.KEYCODE_MEDIA_REWIND) {
                 player.seekTo(Math.max(0, player.getCurrentPosition() - 10000));
-                showControllerNow();
+                showControllerNow(false);
                 return true;
             } else if (code == KeyEvent.KEYCODE_BACK && isFullscreen) {
                 toggleFullscreen(videoBox);
                 return true;
+            }
+
+            // 控制栏隐藏时，遥控器在播放器区域或全屏下按键的处理
+            boolean inPlayerArea = isFullscreen || (playerView != null && playerView.hasFocus());
+            if (!controlsVisible && inPlayerArea) {
+                if (code == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    player.seekTo(Math.max(0, player.getCurrentPosition() + 10000));
+                    showControllerNow(false);
+                    return true;
+                } else if (code == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    player.seekTo(Math.max(0, player.getCurrentPosition() - 10000));
+                    showControllerNow(false);
+                    return true;
+                } else if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
+                        || code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN
+                        || code == KeyEvent.KEYCODE_MENU) {
+                    showControllerNow(true);
+                    return true;
+                }
+            }
+
+            // 控制栏已显示时：延长隐藏时间；若焦点意外还在 playerView 上，按确认/上下键直接切到播放/暂停按钮
+            if (controlsVisible) {
+                if (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN
+                        || code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT
+                        || code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
+                    scheduleHideControls();
+                    if (playerView != null && playerView.hasFocus()
+                            && (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
+                                || code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN)) {
+                        if (playPauseBtn != null)
+                            playPauseBtn.requestFocus();
+                        return true;
+                    }
+                }
             }
         }
         return super.dispatchKeyEvent(event);

@@ -31,7 +31,9 @@ final class Source1Client {
       self.deviceId = Source1Constants.tianjiDeviceId
       self.token = Source1Constants.tianjiToken
     } else {
-      self.deviceId = Self.randomDeviceId()
+      self.deviceId = StorageManager.shared.getSource1DeviceId(mahao: mahao.rawValue) {
+        Self.randomDeviceId()
+      }
       self.token = ""
     }
   }

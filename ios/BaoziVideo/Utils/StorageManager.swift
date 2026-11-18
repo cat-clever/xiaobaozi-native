@@ -28,6 +28,7 @@ final class StorageManager {
   private let defaults = UserDefaults.standard
   private let keyDeviceUid = "baozivideo.deviceUid"
   private let keyUidSlowHits = "baozivideo.deviceUid.slowHits"
+  private let keyS1DeviceIdPrefix = "baozivideo.source1.deviceId."
   private let keySearchHistory = "baozivideo.searchHistory"
   private let keyWatchHistory = "baozivideo.watchHistory"
   private let keyThemeMode = "baozivideo.theme.mode"
@@ -35,6 +36,7 @@ final class StorageManager {
 
   static let slowHitsBeforeRotate = 2
   private static let uidRegex = try! NSRegularExpression(pattern: "^[0-9A-Za-z]{20}$")
+  private static let s1DevRegex = try! NSRegularExpression(pattern: "^[0-9a-f]{16}$")
 
   private init() {}
 
@@ -45,6 +47,19 @@ final class StorageManager {
       return true
     }
     return slowHits >= Self.slowHitsBeforeRotate
+  }
+
+  func getSource1DeviceId(mahao: Int, fallback: () -> String) -> String {
+    let key = keyS1DeviceIdPrefix + String(mahao)
+    if let saved = defaults.string(forKey: key) {
+      let range = NSRange(saved.startIndex..<saved.endIndex, in: saved)
+      if Self.s1DevRegex.firstMatch(in: saved, range: range) != nil {
+        return saved
+      }
+    }
+    let fresh = fallback()
+    defaults.set(fresh, forKey: key)
+    return fresh
   }
 
   func getDeviceUid() -> String {

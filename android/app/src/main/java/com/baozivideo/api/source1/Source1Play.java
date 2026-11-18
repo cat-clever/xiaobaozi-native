@@ -67,6 +67,8 @@ public final class Source1Play {
         List<Models.PlayLine> lines = new ArrayList<>();
         if (bean == null) return lines;
         String vodUrl = bean.optString("vod_url", "");
+        boolean placeholder = isPlaceholderUrl(vodUrl);
+        String placeholderNote = "接口这次下发的是占位路径，直接播只会拿到一段 11 秒的警告片。";
 
         if (vodUrl.startsWith("http")) {
             Models.PlayLine l = new Models.PlayLine();
@@ -76,21 +78,23 @@ public final class Source1Play {
             l.url = vodUrl;
             l.ck = Source1Crypto.parseCk(bean);
             l.wsKey = wsKey;
-            l.playable = true;
-            l.note = "";
+            l.playable = !placeholder;
+            l.note = placeholder ? placeholderNote : "";
             lines.add(l);
         }
 
-        String mirrored = mirrorUrl(vodUrl, secDomain);
-        if (!mirrored.isEmpty()) {
-            Models.PlayLine l = new Models.PlayLine();
-            l.type = Source1Constants.LINE_MIRROR;
-            l.kind = Models.LineKind.mirror;
-            l.name = "备用线路";
-            l.url = mirrored;
-            l.playable = true;
-            l.note = "";
-            lines.add(l);
+        if (!placeholder) {
+            String mirrored = mirrorUrl(vodUrl, secDomain);
+            if (!mirrored.isEmpty()) {
+                Models.PlayLine l = new Models.PlayLine();
+                l.type = Source1Constants.LINE_MIRROR;
+                l.kind = Models.LineKind.mirror;
+                l.name = "备用线路";
+                l.url = mirrored;
+                l.playable = true;
+                l.note = "";
+                lines.add(l);
+            }
         }
 
         JSONArray jx = asLineList(bean.opt("jx_json"));
@@ -114,14 +118,13 @@ public final class Source1Play {
         }
 
         if (vodUrl.startsWith("http")) {
-            boolean placeholder = bean.optInt("is_p2p", 0) == 1 && isPlaceholderUrl(vodUrl);
             Models.PlayLine l = new Models.PlayLine();
             l.type = Source1Constants.LINE_BACKUP;
             l.kind = Models.LineKind.backup;
             l.name = "备用高清";
             l.url = vodUrl;
             l.playable = !placeholder;
-            l.note = placeholder ? "接口这次下发的是占位路径，直接播只会拿到一段 11 秒的警告片。" : "";
+            l.note = placeholder ? placeholderNote : "";
             lines.add(l);
         }
 
@@ -131,17 +134,28 @@ public final class Source1Play {
             if (item == null) continue;
             String url = item.optString("url", "");
             if (!url.startsWith("http")) continue;
+            boolean m3u8Placeholder = isPlaceholderUrl(url);
             Models.PlayLine l = new Models.PlayLine();
             l.type = Source1Constants.LINE_M3U8;
             l.kind = Models.LineKind.m3u8;
             l.name = item.optString("zname", item.optString("name", "m3u8 线路"));
             l.url = url;
-            l.playable = true;
-            l.note = "";
+            l.playable = !m3u8Placeholder;
+            l.note = m3u8Placeholder ? placeholderNote : "";
             lines.add(l);
         }
 
         return lines;
+    }
+
+    public static boolean hasPlayableLine(List<Models.PlayLine> lines) {
+        if (lines == null) return false;
+        for (Models.PlayLine l : lines) {
+            if (l.playable && (l.note == null || l.note.isEmpty()) && l.kind != Models.LineKind.backup) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static List<Models.Episode> mergeDurations(JSONArray eps, JSONArray lengths) {

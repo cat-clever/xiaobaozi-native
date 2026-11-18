@@ -14,12 +14,14 @@ public final class StorageManager {
     private static final String PREF_NAME = "baozivideo_prefs";
     private static final String KEY_DEVICE_UID = "deviceUid";
     private static final String KEY_UID_SLOW_HITS = "deviceUidSlowHits";
+    private static final String KEY_S1_DEVICE_ID = "source1DeviceId";
     private static final String KEY_SEARCH_HISTORY = "searchHistory";
     private static final String KEY_WATCH_HISTORY = "watchHistory";
     private static final String KEY_THEME_MODE = "themeMode";
     private static final String KEY_GLASS = "themeGlass";
     private static final int SLOW_HITS_BEFORE_ROTATE = 2;
     private static final Pattern UID_RE = Pattern.compile("^[0-9A-Za-z]{20}$");
+    private static final Pattern S1_DEV_RE = Pattern.compile("^[0-9a-f]{16}$");
 
     private static StorageManager instance;
     private final SharedPreferences prefs;
@@ -36,6 +38,16 @@ public final class StorageManager {
 
     public static StorageManager getInstance() {
         return instance;
+    }
+
+    public String getSource1DeviceId(int mahao, String fallbackGenerator) {
+        String key = KEY_S1_DEVICE_ID + "_" + mahao;
+        String saved = prefs.getString(key, null);
+        if (saved != null && S1_DEV_RE.matcher(saved).matches()) {
+            return saved;
+        }
+        prefs.edit().putString(key, fallbackGenerator).apply();
+        return fallbackGenerator;
     }
 
     public String getDeviceUid() {

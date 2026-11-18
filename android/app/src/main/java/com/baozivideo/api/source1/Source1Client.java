@@ -2,6 +2,7 @@ package com.baozivideo.api.source1;
 
 import com.baozivideo.api.ApiException;
 import com.baozivideo.api.HttpClient;
+import com.baozivideo.utils.StorageManager;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.net.URLEncoder;
@@ -42,7 +43,8 @@ public class Source1Client {
             this.deviceId = Source1Constants.TIANJI_DEVICE_ID;
             this.token = Source1Constants.TIANJI_TOKEN;
         } else {
-            this.deviceId = randomDeviceId();
+            StorageManager sm = StorageManager.getInstance();
+            this.deviceId = sm != null ? sm.getSource1DeviceId(mahao, randomDeviceId()) : randomDeviceId();
             this.token = "";
         }
     }

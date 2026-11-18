@@ -52,6 +52,8 @@ enum Source1Play {
   static func playLines(bean: [String: Any], secDomain: String = "", wsKey: String = "") -> [PlayLine] {
     var lines: [PlayLine] = []
     let vodUrl = String(describing: bean["vod_url"] ?? "")
+    let placeholder = isPlaceholderUrl(vodUrl)
+    let placeholderNote = "接口这次下发的是占位路径（该账号没有真实路径配额），直接播只会拿到一段 11 秒的警告片。"
 
     if vodUrl.hasPrefix("http") {
       lines.append(PlayLine(
@@ -62,24 +64,26 @@ enum Source1Play {
         parsePrefix: nil,
         ck: Source1Crypto.parseCk(bean),
         wsKey: wsKey,
-        playable: true,
-        note: ""
+        playable: !placeholder,
+        note: placeholder ? placeholderNote : ""
       ))
     }
 
-    let mirrored = mirrorUrl(vodUrl: vodUrl, secDomain: secDomain)
-    if !mirrored.isEmpty {
-      lines.append(PlayLine(
-        type: Source1Constants.lineMirror,
-        kind: .mirror,
-        name: "备用线路",
-        url: mirrored,
-        parsePrefix: nil,
-        ck: nil,
-        wsKey: nil,
-        playable: true,
-        note: ""
-      ))
+    if !placeholder {
+      let mirrored = mirrorUrl(vodUrl: vodUrl, secDomain: secDomain)
+      if !mirrored.isEmpty {
+        lines.append(PlayLine(
+          type: Source1Constants.lineMirror,
+          kind: .mirror,
+          name: "备用线路",
+          url: mirrored,
+          parsePrefix: nil,
+          ck: nil,
+          wsKey: nil,
+          playable: true,
+          note: ""
+        ))
+      }
     }
 
     let jx = asLineList(bean["jx_json"])
@@ -103,8 +107,6 @@ enum Source1Play {
     }
 
     if vodUrl.hasPrefix("http") {
-      let isP2p = (bean["is_p2p"] as? NSNumber)?.intValue == 1
-      let placeholder = isP2p && isPlaceholderUrl(vodUrl)
       lines.append(PlayLine(
         type: Source1Constants.lineBackup,
         kind: .backup,
@@ -114,13 +116,14 @@ enum Source1Play {
         ck: nil,
         wsKey: nil,
         playable: !placeholder,
-        note: placeholder ? "接口这次下发的是占位路径（该账号没有真实路径配额），直接播只会拿到一段 11 秒的警告片。" : ""
+        note: placeholder ? placeholderNote : ""
       ))
     }
 
     for item in asLineList(bean["m3u8_json"]) {
       let url = String(describing: item["url"] ?? "")
       if !url.hasPrefix("http") { continue }
+      let m3u8Placeholder = isPlaceholderUrl(url)
       let name = String(describing: item["zname"] ?? item["name"] ?? "m3u8 线路")
       lines.append(PlayLine(
         type: Source1Constants.lineM3u8,
@@ -130,12 +133,16 @@ enum Source1Play {
         parsePrefix: nil,
         ck: nil,
         wsKey: nil,
-        playable: true,
-        note: ""
+        playable: !m3u8Placeholder,
+        note: m3u8Placeholder ? placeholderNote : ""
       ))
     }
 
     return lines
+  }
+
+  static func hasPlayableLine(_ lines: [PlayLine]) -> Bool {
+    lines.contains { $0.playable && $0.note.isEmpty && $0.kind != .backup }
   }
 
   static func episodes(_ detail: [String: Any]) -> [[String: Any]] {

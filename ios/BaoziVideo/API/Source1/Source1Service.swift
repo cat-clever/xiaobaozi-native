@@ -16,6 +16,7 @@ actor Source1Service {
   static let shared = Source1Service()
 
   private var sharedClient: Source1Client?
+  private var playClients: [MahaoId: Source1Client] = [:]
 
   static func absolutePic(_ raw: Any?) -> String {
     let url = String(describing: raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -50,6 +51,7 @@ actor Source1Service {
       do {
         try await client.initialize()
         sharedClient = client
+        playClients[mahao] = client
         return client
       } catch {
         errors.append("\(client.entry.label): \(error.localizedDescription)")
@@ -231,11 +233,21 @@ actor Source1Service {
 
     var errors: [String] = []
     for mahao in Source1Constants.playChain {
-      let client = Source1Client(mahao: mahao)
+      let client: Source1Client
+      let cached = playClients[mahao]
+      if let cached {
+        client = cached
+      } else {
+        client = Source1Client(mahao: mahao)
+      }
       do {
-        try await client.initialize()
+        if cached == nil {
+          try await client.initialize()
+          playClients[mahao] = client
+        }
         guard let bean = await episodeBeanFor(client: client, vodId: idNum, episode: episode),
               let token = bean["vod_token"] as? String, !token.isEmpty else {
+          playClients.removeValue(forKey: mahao)
           errors.append("\(client.entry.label)：这个身份签不出 vod_token")
           continue
         }
@@ -246,9 +258,10 @@ actor Source1Service {
           curTime: String(describing: bean["cur_time"] ?? "")
         )
         let lines = Source1Play.playLines(bean: colResp, secDomain: client.secDomain, wsKey: client.wsKey)
-        if !lines.isEmpty { return lines }
-        errors.append("\(client.entry.label)：上游没回线路")
+        if Source1Play.hasPlayableLine(lines) { return lines }
+        errors.append("\(client.entry.label)：\(lines.isEmpty ? "上游没回线路" : "仅下发占位或不可播线路")")
       } catch {
+        playClients.removeValue(forKey: mahao)
         errors.append("\(client.entry.label)：\(error.localizedDescription)")
       }
     }

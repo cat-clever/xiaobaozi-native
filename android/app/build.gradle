@@ -15,8 +15,8 @@ android {
         applicationId "com.xiaobaozi.video"
         minSdk 24
         targetSdk 35
-        versionCode 90
-        versionName "1.0.14"
+        versionCode 91
+        versionName "1.0.15"
     }
 
     compileOptions {

@@ -72,8 +72,8 @@ enum Source1Constants {
     ),
   ]
 
-  static let autoChain: [MahaoId] = [.dieying, .chsp, .chspOld, .tianji]
-  static let playChain: [MahaoId] = [.dieying, .chsp, .chspOld, .tianji]
+  static let autoChain: [MahaoId] = [.chsp, .chspOld, .tianji, .dieying]
+  static let playChain: [MahaoId] = [.chsp, .chspOld, .tianji, .dieying]
 
   static let tianjiDeviceId = "96ab557f6826febf"
   static let tianjiToken = "gAAAAABqyeanWUJ6JutPAslzwyrJdqtIZthjnfZrAfgFmbZhOdDlJYtI4XCW3TfbAFIRrDoecPmA32TWPizIq5tewpE0QHRYpGZCUPGL0HV14wFuwQo-4qf8ON1pMBiFF3Odq7p2oyw7K5szpSE-nwiGUYU5_5zA5bb6p8Q_23gYcanLA1XXLJp1RX8Iz645_e_aaRibg25KSTyJKOErmhgiiAJ-nlp6TA=="

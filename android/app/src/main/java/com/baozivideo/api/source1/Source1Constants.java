@@ -39,8 +39,8 @@ public final class Source1Constants {
         MAHAO_TABLE.put(MAHAO_CHSP_OLD, new MahaoEntry("彩虹视频（老接口）", "caihongshipin", "com.hjmore.hdcre", "43000", "sp01", "af2tu1aCoXwDIUpAFBv7i8sDhpi3cSrr", "", true));
     }
 
-    public static final int[] AUTO_CHAIN = {MAHAO_DIEYING, MAHAO_CHSP, MAHAO_CHSP_OLD, MAHAO_TIANJI};
-    public static final int[] PLAY_CHAIN = {MAHAO_DIEYING, MAHAO_CHSP, MAHAO_CHSP_OLD, MAHAO_TIANJI};
+    public static final int[] AUTO_CHAIN = {MAHAO_CHSP, MAHAO_CHSP_OLD, MAHAO_TIANJI, MAHAO_DIEYING};
+    public static final int[] PLAY_CHAIN = {MAHAO_CHSP, MAHAO_CHSP_OLD, MAHAO_TIANJI, MAHAO_DIEYING};
 
     public static final String TIANJI_DEVICE_ID = "96ab557f6826febf";
     public static final String TIANJI_TOKEN = "gAAAAABqyeanWUJ6JutPAslzwyrJdqtIZthjnfZrAfgFmbZhOdDlJYtI4XCW3TfbAFIRrDoecPmA32TWPizIq5tewpE0QHRYpGZCUPGL0HV14wFuwQo-4qf8ON1pMBiFF3Odq7p2oyw7K5szpSE-nwiGUYU5_5zA5bb6p8Q_23gYcanLA1XXLJp1RX8Iz645_e_aaRibg25KSTyJKOErmhgiiAJ-nlp6TA==";

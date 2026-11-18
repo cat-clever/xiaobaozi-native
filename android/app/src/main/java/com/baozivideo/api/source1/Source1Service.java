@@ -12,9 +12,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class Source1Service {
     private static volatile Source1Client sharedClient;
+    private static final Map<Integer, Source1Client> playClients = new ConcurrentHashMap<>();
 
     public static class CategoryTree {
         public static class Dim {
@@ -61,6 +63,7 @@ public final class Source1Service {
             try {
                 client.init();
                 sharedClient = client;
+                playClients.put(mahao, client);
                 return client;
             } catch (Exception e) {
                 errors.add(client.entry.label + ": " + e.getMessage());
@@ -247,9 +250,13 @@ public final class Source1Service {
         }
         List<String> errors = new ArrayList<>();
         for (int mahao : Source1Constants.PLAY_CHAIN) {
-            Source1Client client = new Source1Client(mahao);
+            Source1Client client = playClients.get(mahao);
             try {
-                client.init();
+                if (client == null) {
+                    client = new Source1Client(mahao);
+                    client.init();
+                    playClients.put(mahao, client);
+                }
                 JSONObject bean = null;
                 try {
                     bean = pickBean(client.detail(idNum).optJSONArray("vod_collection"), ep);
@@ -261,15 +268,17 @@ public final class Source1Service {
                     } catch (Exception ignored) {}
                 }
                 if (bean == null || bean.optString("vod_token", "").isEmpty()) {
+                    playClients.remove(mahao);
                     errors.add(client.entry.label + "：签不出 vod_token");
                     continue;
                 }
                 JSONObject col = client.collection(idNum, collectionId, bean.optString("vod_token", ""), bean.optString("cur_time", ""));
                 List<Models.PlayLine> lines = Source1Play.playLines(col, client.secDomain, client.wsKey);
-                if (!lines.isEmpty()) return lines;
-                errors.add(client.entry.label + "：上游没回线路");
+                if (Source1Play.hasPlayableLine(lines)) return lines;
+                errors.add(client.entry.label + (lines.isEmpty() ? "：上游没回线路" : "：仅下发占位或不可播线路"));
             } catch (Exception e) {
-                errors.add(client.entry.label + "：" + e.getMessage());
+                playClients.remove(mahao);
+                errors.add((client != null ? client.entry.label : String.valueOf(mahao)) + "：" + e.getMessage());
             }
         }
         throw new ApiException("取不到线路：" + String.join("；", errors));
